@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';  
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dreams_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +26,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/auth': (context) => AuthScreen(),
         '/home': (context) => HomeScreen(),
+        '/dreams': (context) => DreamsScreen(),
       },
     );
   }

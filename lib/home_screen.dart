@@ -20,12 +20,19 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: Center(
-        child: Text(
-          'Welcome to R.E.M!\nYou are logged in successfully.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Welcome to R.E.M!'),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/dreams');
+              },
+              child: Text('Go to Dream Journal'),
+            ),
+          ],
         ),
       ),
-    );
+    ); // ✅ Closing parenthesis for Scaffold was missing
   }
 }
