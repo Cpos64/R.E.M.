@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "755055508366",
+    "project_id": "sleepdreamsocialapp",
+    "storage_bucket": "sleepdreamsocialapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:755055508366:android:c0694a26606d357a88c2df",
+        "android_client_info": {
+          "package_name": "com.example.rem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAehE-ly7wtvE010QlbulNwm6ox7s92Lqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
