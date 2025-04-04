@@ -1,16 +1,28 @@
-# sleep_dream_social_app
+# R.E.M. - Sleep and Dream Social App 🌙
 
-A new Flutter project.
+A Flutter application focused on promoting healthy sleep and dream journaling, built with Firebase.
 
-## Getting Started
+## 📖 Description
 
-This project is a starting point for a Flutter application.
+R.E.M. (Rapid Eye Movement) is a social media app designed for athletes and active individuals to track their sleep, journal their dreams, and share insights with their community. 
 
-A few resources to get you started if this is your first Flutter project:
+## 🚀 Features
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- ✅ Firebase Authentication (Signup, Login)
+- ✅ Dream Journaling
+- ✅ Sleep Tracking
+- ✅ Firebase Firestore Integration
+- ✅ Multi-Platform Support (Android, iOS, Web)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📦 Dependencies
+
+- flutter
+- firebase_core
+- firebase_auth
+- cloud_firestore
+
+## 🔨 Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/Cpos64/R.E.M..git
