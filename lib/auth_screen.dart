@@ -25,6 +25,10 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text.trim(),
         );
       }
+
+      // ✅ Navigate to Home Screen on successful login/signup
+      Navigator.of(context).pushReplacementNamed('/home');
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
