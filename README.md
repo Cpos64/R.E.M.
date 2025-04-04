@@ -4,7 +4,7 @@ A Flutter application focused on promoting healthy sleep and dream journaling, b
 
 ## 📖 Description
 
-R.E.M. (Rapid Eye Movement) is a social media app designed for athletes and active individuals to track their sleep, journal their dreams, and share insights with their community. 
+R.E.M. (Rest Experience Mindfulness) is a social media app designed for athletes and active individuals to track their sleep, journal their dreams, and share insights with their community. 
 
 ## 🚀 Features
 
