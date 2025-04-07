@@ -10,16 +10,90 @@ class SleepLogScreen extends StatefulWidget {
 class _SleepLogScreenState extends State<SleepLogScreen> {
   final SleepLogService _sleepLogService = SleepLogService();
   final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _editDurationController = TextEditingController();
+  final TextEditingController _editQualityController = TextEditingController();
   String _quality = 'Good';
 
-  void _saveSleepLog() async {
-    final duration = int.tryParse(_durationController.text) ?? 0;
+  late Future<List<QueryDocumentSnapshot>> _sleepLogsFuture;
 
-    if (duration > 0) {
-      await _sleepLogService.saveSleepLog(duration, _quality, DateTime.now());
-      _durationController.clear();
-      setState(() {});
+  @override
+  void initState() {
+    super.initState();
+    _sleepLogsFuture = _loadSleepLogs();
+  }
+
+  Future<List<QueryDocumentSnapshot>> _loadSleepLogs() async {
+    return await _sleepLogService.getSleepLogs();
+  }
+
+  Future<void> _saveSleepLog() async {
+    final durationText = _durationController.text.trim();
+
+    final regex = RegExp(r'^\d{1,2}h\d{1,2}m$');
+    if (!regex.hasMatch(durationText)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid duration format. Use _h_m (e.g., 6h35m).')),
+      );
+      return;
     }
+
+    await _sleepLogService.saveSleepLog(durationText, _quality, DateTime.now());
+    _durationController.clear();
+
+    setState(() {
+      _sleepLogsFuture = _loadSleepLogs();
+    });
+  }
+
+  Future<void> _editSleepLog(String docId, String currentDuration, String currentQuality) async {
+    _editDurationController.text = currentDuration;
+    _editQualityController.text = currentQuality;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Sleep Log'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _editDurationController,
+              decoration: InputDecoration(labelText: 'Duration (e.g., 6h35m)'),
+            ),
+            TextField(
+              controller: _editQualityController,
+              decoration: InputDecoration(labelText: 'Quality (Good, Average, Poor)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newDuration = _editDurationController.text.trim();
+              final newQuality = _editQualityController.text.trim();
+
+              await _sleepLogService.updateSleepLog(docId, newDuration, newQuality);
+              Navigator.of(context).pop();
+              setState(() {
+                _sleepLogsFuture = _loadSleepLogs();
+              });
+            },
+            child: Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSleepLog(String docId) async {
+    await _sleepLogService.deleteSleepLog(docId);
+    setState(() {
+      _sleepLogsFuture = _loadSleepLogs();
+    });
   }
 
   @override
@@ -33,53 +107,52 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
             TextField(
               controller: _durationController,
               decoration: InputDecoration(
-                labelText: 'Sleep Duration (in minutes)',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _quality,
-              items: ['Good', 'Average', 'Poor']
-                  .map((quality) => DropdownMenuItem(
-                        value: quality,
-                        child: Text(quality),
-                      ))
-                  .toList(),
-              onChanged: (value) => setState(() => _quality = value!),
-              decoration: InputDecoration(
-                labelText: 'Sleep Quality',
+                labelText: 'Sleep Duration (e.g., 6h35m)',
                 border: OutlineInputBorder(),
               ),
             ),
             SizedBox(height: 10),
             ElevatedButton(
               onPressed: _saveSleepLog,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              ),
               child: Text('Save Sleep Log'),
             ),
+            SizedBox(height: 20),
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _sleepLogService.getSleepLogs(),
+              child: FutureBuilder<List<QueryDocumentSnapshot>>(
+                future: _sleepLogsFuture,
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return CircularProgressIndicator();
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(child: Text('No sleep logs saved yet.'));
+                  }
 
-                  final sleepLogs = snapshot.data!.docs;
+                  final sleepLogs = snapshot.data!;
 
                   return ListView.builder(
                     itemCount: sleepLogs.length,
                     itemBuilder: (context, index) {
                       final log = sleepLogs[index];
+                      final docId = log.id;
+                      final duration = log['duration'];
+                      final quality = log['quality'];
                       final date = (log['date'] as Timestamp).toDate();
+
                       return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8.0),
                         child: ListTile(
-                          title: Text('Duration: ${log['duration']} minutes'),
-                          subtitle: Text(
-                              'Quality: ${log['quality']} - Date: ${date.toLocal()}'),
+                          title: Text('Duration: $duration'),
+                          subtitle: Text('Quality: $quality - Date: ${date.toLocal().toString().split(' ')[0]}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () => _editSleepLog(docId, duration, quality),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete),
+                                onPressed: () => _deleteSleepLog(docId),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -93,4 +166,3 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     );
   }
 }
-
