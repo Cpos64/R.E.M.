@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
+import 'package:intl/intl.dart';
 
 class DreamsScreen extends StatefulWidget {
   @override
@@ -11,19 +12,23 @@ class _DreamsScreenState extends State<DreamsScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _editTitleController = TextEditingController();
-  final TextEditingController _editDescriptionController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   late Future<List<QueryDocumentSnapshot>> _dreamsFuture;
+  bool _isEditing = false;
+  String _editingDocId = '';
+  String _filterKeyword = '';
 
   @override
   void initState() {
     super.initState();
-    _dreamsFuture = _loadDreams();
+    _loadDreams();
   }
 
-  Future<List<QueryDocumentSnapshot>> _loadDreams() async {
-    return await _firestoreService.getDreams();
+  void _loadDreams() {
+    setState(() {
+      _dreamsFuture = _firestoreService.getDreams();
+    });
   }
 
   Future<void> _saveDream() async {
@@ -31,66 +36,44 @@ class _DreamsScreenState extends State<DreamsScreen> {
     final description = _descriptionController.text.trim();
 
     if (title.isNotEmpty && description.isNotEmpty) {
-      await _firestoreService.saveDream(title, description);
+      if (_isEditing) {
+        await _firestoreService.updateDream(_editingDocId, title, description);
+        _isEditing = false;
+        _editingDocId = '';
+      } else {
+        await _firestoreService.saveDream(title, description);
+      }
+
       _titleController.clear();
       _descriptionController.clear();
-
-      setState(() {
-        _dreamsFuture = _loadDreams();
-      });
+      _loadDreams();
     }
   }
 
-  Future<void> _editDream(String docId, String currentTitle, String currentDescription) async {
-    _editTitleController.text = currentTitle;
-    _editDescriptionController.text = currentDescription;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit Dream'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _editTitleController,
-              decoration: InputDecoration(labelText: 'Title'),
-            ),
-            TextField(
-              controller: _editDescriptionController,
-              decoration: InputDecoration(labelText: 'Description'),
-              maxLines: 4,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final newTitle = _editTitleController.text.trim();
-              final newDescription = _editDescriptionController.text.trim();
-
-              await _firestoreService.updateDream(docId, newTitle, newDescription);
-              Navigator.of(context).pop();
-              setState(() {
-                _dreamsFuture = _loadDreams();
-              });
-            },
-            child: Text('Save'),
-          ),
-        ],
-      ),
-    );
+  void _startEditing(String docId, String title, String description) {
+    setState(() {
+      _isEditing = true;
+      _editingDocId = docId;
+      _titleController.text = title;
+      _descriptionController.text = description;
+    });
   }
 
   Future<void> _deleteDream(String docId) async {
     await _firestoreService.deleteDream(docId);
-    setState(() {
-      _dreamsFuture = _loadDreams();
-    });
+    _loadDreams();
+  }
+
+  List<QueryDocumentSnapshot> _filterDreams(List<QueryDocumentSnapshot> dreams) {
+    if (_filterKeyword.isEmpty) return dreams;
+
+    return dreams.where((doc) {
+      final title = doc['title'].toString().toLowerCase();
+      final description = doc['description'].toString().toLowerCase();
+      final keyword = _filterKeyword.toLowerCase();
+
+      return title.contains(keyword) || description.contains(keyword);
+    }).toList();
   }
 
   @override
@@ -101,6 +84,19 @@ class _DreamsScreenState extends State<DreamsScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search Dreams',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _filterKeyword = value;
+                });
+              },
+            ),
+            SizedBox(height: 10),
             TextField(
               controller: _titleController,
               decoration: InputDecoration(
@@ -120,18 +116,21 @@ class _DreamsScreenState extends State<DreamsScreen> {
             SizedBox(height: 10),
             ElevatedButton(
               onPressed: _saveDream,
-              child: Text('Save Dream'),
+              child: Text(_isEditing ? 'Update Dream' : 'Save Dream'),
             ),
             SizedBox(height: 20),
             Expanded(
               child: FutureBuilder<List<QueryDocumentSnapshot>>(
                 future: _dreamsFuture,
                 builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(child: Text('No dreams saved yet.'));
                   }
 
-                  final dreams = snapshot.data!;
+                  final dreams = _filterDreams(snapshot.data!);
 
                   return ListView.builder(
                     itemCount: dreams.length,
@@ -140,23 +139,21 @@ class _DreamsScreenState extends State<DreamsScreen> {
                       final docId = dream.id;
                       final title = dream['title'];
                       final description = dream['description'];
+                      final timestamp = (dream['timestamp'] as Timestamp).toDate();
+                      final formattedDate = DateFormat.yMMMd().format(timestamp);
 
                       return Card(
+                        margin: EdgeInsets.symmetric(vertical: 8.0),
                         child: ListTile(
-                          title: Text(title),
-                          subtitle: Text(description),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit),
-                                onPressed: () => _editDream(docId, title, description),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete),
-                                onPressed: () => _deleteDream(docId),
-                              ),
-                            ],
+                          title: Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                            '$formattedDate\n${description.length > 50 ? description.substring(0, 50) + '...' : description}',
+                          ),
+                          isThreeLine: true,
+                          onTap: () => _startEditing(docId, title, description),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () => _deleteDream(docId),
                           ),
                         ),
                       );
@@ -171,4 +168,3 @@ class _DreamsScreenState extends State<DreamsScreen> {
     );
   }
 }
-
