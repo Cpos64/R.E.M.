@@ -13,10 +13,12 @@ class _DreamsScreenState extends State<DreamsScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _editTitleController = TextEditingController();
+  final TextEditingController _editDescriptionController = TextEditingController();
 
   late Future<List<QueryDocumentSnapshot>> _dreamsFuture;
-  bool _isEditing = false;
   String _editingDocId = '';
+  bool _isEditing = false;
   String _filterKeyword = '';
 
   @override
@@ -50,13 +52,47 @@ class _DreamsScreenState extends State<DreamsScreen> {
     }
   }
 
-  void _startEditing(String docId, String title, String description) {
-    setState(() {
-      _isEditing = true;
-      _editingDocId = docId;
-      _titleController.text = title;
-      _descriptionController.text = description;
-    });
+  Future<void> _editDream(String docId, String currentTitle, String currentDescription) async {
+    _editTitleController.text = currentTitle;
+    _editDescriptionController.text = currentDescription;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Dream'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _editTitleController,
+              decoration: InputDecoration(labelText: 'Title'),
+            ),
+            TextField(
+              controller: _editDescriptionController,
+              decoration: InputDecoration(labelText: 'Description'),
+              maxLines: 5,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newTitle = _editTitleController.text.trim();
+              final newDescription = _editDescriptionController.text.trim();
+
+              await _firestoreService.updateDream(docId, newTitle, newDescription);
+              Navigator.of(context).pop();
+              _loadDreams();
+            },
+            child: Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deleteDream(String docId) async {
@@ -145,15 +181,20 @@ class _DreamsScreenState extends State<DreamsScreen> {
                       return Card(
                         margin: EdgeInsets.symmetric(vertical: 8.0),
                         child: ListTile(
-                          title: Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            '$formattedDate\n${description.length > 50 ? description.substring(0, 50) + '...' : description}',
-                          ),
-                          isThreeLine: true,
-                          onTap: () => _startEditing(docId, title, description),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () => _deleteDream(docId),
+                          title: Text(title),
+                          subtitle: Text('$formattedDate\n$description'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () => _editDream(docId, title, description),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete),
+                                onPressed: () => _deleteDream(docId),
+                              ),
+                            ],
                           ),
                         ),
                       );
