@@ -5,6 +5,7 @@ import 'auth_screen.dart';
 import 'home_screen.dart';  
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dreams_screen.dart';
+import 'sleep_log_screen.dart';  // ✅ Import your new sleep log screen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,7 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => AuthScreen(),
         '/home': (context) => HomeScreen(),
         '/dreams': (context) => DreamsScreen(),
+        '/sleepLogs': (context) => SleepLogScreen(),  // ✅ Add this route
       },
     );
   }
