@@ -15,20 +15,55 @@ class FirestoreService {
         'description': description,
         'timestamp': FieldValue.serverTimestamp(),
       });
+      print("✅ Dream Saved Successfully: $title");
+    } else {
+      print("❌ Error: User is not authenticated.");
     }
   }
 
-  Stream<QuerySnapshot> getDreams() {
-    final user = _auth.currentUser;
+  Future<void> updateDream(String docId, String title, String description) async {
+    await _firestore.collection('dreams').doc(docId).update({
+      'title': title,
+      'description': description,
+    });
+    print("✅ Dream Updated: $title");
+  }
 
-    if (user != null) {
-      return _firestore
+  Future<void> deleteDream(String docId) async {
+    await _firestore.collection('dreams').doc(docId).delete();
+    print("✅ Dream Deleted: $docId");
+  }
+
+Future<List<QueryDocumentSnapshot>> getDreams() async {
+  final user = _auth.currentUser;
+
+  if (user != null) {
+    print("🔍 Fetching dreams for user: ${user.uid}");
+
+    try {
+      final snapshot = await _firestore
           .collection('dreams')
           .where('userId', isEqualTo: user.uid)
           .orderBy('timestamp', descending: true)
-          .snapshots();
-    }
+          .get();
 
-    return const Stream.empty();
+      print("✅ Retrieved ${snapshot.docs.length} dreams from Firestore.");
+      
+      if (snapshot.docs.isEmpty) {
+        print("❌ No dreams found in the Firestore database for this user.");
+      }
+
+      for (var doc in snapshot.docs) {
+        print("📄 Dream: ${doc['title']} - ${doc['description']} - Timestamp: ${doc['timestamp']}");
+      }
+
+      return snapshot.docs;
+    } catch (e) {
+      print("❌ Error fetching dreams: $e");
+      return [];
+    }
   }
+  print("❌ Error: User is not authenticated.");
+  return [];
+}
 }
