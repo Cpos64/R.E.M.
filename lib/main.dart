@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'auth_screen.dart';
-import 'home_screen.dart';  
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home_screen.dart';
 import 'dreams_screen.dart';
-import 'sleep_log_screen.dart';  // 
+import 'sleep_log_screen.dart';  // Make sure this is imported
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +27,10 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => AuthScreen(),
         '/home': (context) => HomeScreen(),
         '/dreams': (context) => DreamsScreen(),
-        '/sleepLogs': (context) => SleepLogScreen(),  // ✅ Add this route
+        '/sleep_logs': (context) => SleepLogScreen(),  // Make sure this is added
       },
+      debugShowCheckedModeBanner: false,  // Removes the "DEBUG" banner
     );
   }
 }
+
