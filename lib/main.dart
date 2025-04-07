@@ -5,6 +5,7 @@ import 'auth_screen.dart';
 import 'home_screen.dart';
 import 'dreams_screen.dart';
 import 'sleep_log_screen.dart';  // Make sure this is imported
+import 'view_dream_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
