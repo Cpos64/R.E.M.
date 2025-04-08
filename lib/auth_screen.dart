@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
+  final Function(bool)? toggleTheme;
+  final bool isDarkTheme;
+
+  AuthScreen({this.toggleTheme, this.isDarkTheme = false});
+
   @override
   _AuthScreenState createState() => _AuthScreenState();
 }
@@ -13,59 +17,67 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLogin = true;
+  String _errorMessage = '';
   bool _rememberMe = false;
 
   @override
   void initState() {
     super.initState();
-    _checkIfLoggedIn();
+    _loadSavedCredentials();
   }
 
-  Future<void> _checkIfLoggedIn() async {
+  Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString('email');
-    final password = prefs.getString('password');
+    final savedEmail = prefs.getString('email');
+    final savedPassword = prefs.getString('password');
 
-    if (email != null && password != null) {
-      try {
-        await _auth.signInWithEmailAndPassword(email: email, password: password);
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen()));
-      } catch (e) {
-        print("❌ Automatic login failed: $e");
-      }
+    if (savedEmail != null && savedPassword != null) {
+      setState(() {
+        _emailController.text = savedEmail;
+        _passwordController.text = savedPassword;
+        _rememberMe = true;
+      });
     }
   }
 
   Future<void> _submit() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
     try {
       if (_isLogin) {
-        await _auth.signInWithEmailAndPassword(email: email, password: password);
+        await _auth.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        if (_rememberMe) {
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setString('email', _emailController.text.trim());
+          prefs.setString('password', _passwordController.text.trim());
+        } else {
+          final prefs = await SharedPreferences.getInstance();
+          prefs.remove('email');
+          prefs.remove('password');
+        }
+
+        Navigator.of(context).pushReplacementNamed('/home');
       } else {
-        await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      }
+        await _auth.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
-      if (_rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setString('email', email);
-        prefs.setString('password', password);
-        print("✅ Credentials saved for automatic login.");
+        Navigator.of(context).pushReplacementNamed('/home');
       }
-
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen()));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      setState(() {
+        _errorMessage = e.toString();
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Signup')),
+      appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Sign Up')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -79,18 +91,29 @@ class _AuthScreenState extends State<AuthScreen> {
               decoration: InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
+            SizedBox(height: 10),
             Row(
               children: [
                 Checkbox(
                   value: _rememberMe,
-                  onChanged: (value) => setState(() => _rememberMe = value!),
+                  onChanged: (value) {
+                    setState(() {
+                      _rememberMe = value ?? false;
+                    });
+                  },
                 ),
-                Text('Remember Me')
+                Text('Remember Me'),
               ],
             ),
+            SizedBox(height: 20),
+            if (_errorMessage.isNotEmpty)
+              Text(
+                _errorMessage,
+                style: TextStyle(color: Colors.red),
+              ),
             ElevatedButton(
               onPressed: _submit,
-              child: Text(_isLogin ? 'Login' : 'Signup'),
+              child: Text(_isLogin ? 'Login' : 'Sign Up'),
             ),
             TextButton(
               onPressed: () {
