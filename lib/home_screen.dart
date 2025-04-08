@@ -1,53 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'auth_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Function(bool) toggleTheme;
   final bool isDarkTheme;
 
-  // ✅ Corrected Constructor Declaration
   const HomeScreen({
     required this.toggleTheme,
     required this.isDarkTheme,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await _auth.signOut();
     await prefs.remove('email');
     await prefs.remove('password');
-    
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => AuthScreen(
-          toggleTheme: toggleTheme, // Pass toggleTheme to AuthScreen
-          isDarkTheme: isDarkTheme, // Pass current theme state to AuthScreen
-        ),
-      ),
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Logged out successfully')),
     );
+
+    // 🔄 Small delay to let authStateChanges trigger rebuild in main.dart
+    await Future.delayed(Duration(milliseconds: 500));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Home - R.E.M.'),
+        title: const Text('R.E.M. Home'),
         actions: [
           Row(
             children: [
-              Text('Dark Mode', style: TextStyle(fontSize: 16)),
+              Icon(Icons.dark_mode),
               Switch(
                 value: isDarkTheme,
-                onChanged: (value) {
-                  toggleTheme(value);
-                },
+                onChanged: toggleTheme,
               ),
               IconButton(
                 icon: Icon(Icons.logout),
+                tooltip: 'Logout',
                 onPressed: () => _logout(context),
               ),
             ],

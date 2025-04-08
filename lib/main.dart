@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'auth_screen.dart';
+import 'screens/login_screen.dart';
 import 'home_screen.dart';
 import 'dreams_screen.dart';
 import 'sleep_log_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,24 +53,26 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'R.E.M',
-      theme: _isDarkTheme ? ThemeData.dark() : ThemeData.light(),
-      debugShowCheckedModeBanner: false,
-      home: FirebaseAuth.instance.currentUser == null
-          ? AuthScreen()
-          : HomeScreen(
-              toggleTheme: _toggleTheme,
-              isDarkTheme: _isDarkTheme,
-            ),
-      routes: {
-        '/auth': (context) => AuthScreen(),
-        '/home': (context) => HomeScreen(
-              toggleTheme: _toggleTheme,
-              isDarkTheme: _isDarkTheme,
-            ),
-        '/dreams': (context) => DreamsScreen(),
-        '/sleep_logs': (context) => SleepLogScreen(),
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        final isLoggedIn = snapshot.hasData;
+
+        return MaterialApp(
+          title: 'R.E.M',
+          theme: _isDarkTheme ? ThemeData.dark() : ThemeData.light(),
+          debugShowCheckedModeBanner: false,
+          home: isLoggedIn
+              ? HomeScreen(
+                  toggleTheme: _toggleTheme,
+                  isDarkTheme: _isDarkTheme,
+                )
+              : const LoginScreen(),
+          routes: {
+            '/dreams': (context) => DreamsScreen(),
+            '/sleep_logs': (context) => SleepLogScreen(),
+          },
+        );
       },
     );
   }
