@@ -5,18 +5,29 @@ import 'auth_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final Function(bool) toggleTheme;
+  final bool isDarkTheme;
+
+  // ✅ Corrected Constructor Declaration
+  const HomeScreen({
+    required this.toggleTheme,
+    required this.isDarkTheme,
+    Key? key,
+  }) : super(key: key);
 
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await _auth.signOut();
-    
-    // Clear saved credentials
     await prefs.remove('email');
     await prefs.remove('password');
-    print("✅ Logged out successfully. Saved credentials cleared.");
     
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => AuthScreen()),
+      MaterialPageRoute(
+        builder: (context) => AuthScreen(
+          toggleTheme: toggleTheme, // Pass toggleTheme to AuthScreen
+          isDarkTheme: isDarkTheme, // Pass current theme state to AuthScreen
+        ),
+      ),
     );
   }
 
@@ -26,21 +37,29 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Home - R.E.M.'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: () => _logout(context),
+          Row(
+            children: [
+              Text('Dark Mode', style: TextStyle(fontSize: 16)),
+              Switch(
+                value: isDarkTheme,
+                onChanged: (value) {
+                  toggleTheme(value);
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.logout),
+                onPressed: () => _logout(context),
+              ),
+            ],
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 40.0),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Welcome to R.E.M!',
-              textAlign: TextAlign.center,
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 30),
@@ -48,20 +67,14 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.of(context).pushNamed('/dreams');
               },
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 15),
-              ),
-              child: Text('Go to Dream Journal', style: TextStyle(fontSize: 18)),
+              child: Text('Go to Dream Journal'),
             ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pushNamed('/sleep_logs');
               },
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 15),
-              ),
-              child: Text('Go to Sleep Logs', style: TextStyle(fontSize: 18)),
+              child: Text('Go to Sleep Logs'),
             ),
           ],
         ),
