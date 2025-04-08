@@ -13,10 +13,12 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -54,14 +56,19 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'R.E.M',
       theme: _isDarkTheme ? ThemeData.dark() : ThemeData.light(),
-      debugShowCheckedModeBanner: false,  // 🔥 This line removes the red debug banner
-      initialRoute: '/home',
+      debugShowCheckedModeBanner: false,
+      home: FirebaseAuth.instance.currentUser == null
+          ? AuthScreen()
+          : HomeScreen(
+              toggleTheme: _toggleTheme,
+              isDarkTheme: _isDarkTheme,
+            ),
       routes: {
         '/auth': (context) => AuthScreen(),
         '/home': (context) => HomeScreen(
-          toggleTheme: _toggleTheme,
-          isDarkTheme: _isDarkTheme,
-        ),
+              toggleTheme: _toggleTheme,
+              isDarkTheme: _isDarkTheme,
+            ),
         '/dreams': (context) => DreamsScreen(),
         '/sleep_logs': (context) => SleepLogScreen(),
       },

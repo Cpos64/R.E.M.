@@ -1,69 +1,59 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // ------------------ DREAM METHODS ------------------
+
+Future<List<QueryDocumentSnapshot>> getDreams() async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('dreams')
+      .get(); // <-- no orderBy
+  return snapshot.docs;
+}
 
   Future<void> saveDream(String title, String description) async {
-    final user = _auth.currentUser;
-
-    if (user != null) {
-      await _firestore.collection('dreams').add({
-        'userId': user.uid,
-        'title': title,
-        'description': description,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-      print("✅ Dream Saved Successfully: $title");
-    } else {
-      print("❌ Error: User is not authenticated.");
-    }
-  }
-
-  Future<void> updateDream(String docId, String title, String description) async {
-    await _firestore.collection('dreams').doc(docId).update({
+    await FirebaseFirestore.instance.collection('dreams').add({
       'title': title,
       'description': description,
+      'timestamp': FieldValue.serverTimestamp(),
     });
-    print("✅ Dream Updated: $title");
+  }
+
+  Future<void> updateDream(String docId, String newTitle, String newDescription) async {
+    await FirebaseFirestore.instance.collection('dreams').doc(docId).update({
+      'title': newTitle,
+      'description': newDescription,
+    });
   }
 
   Future<void> deleteDream(String docId) async {
-    await _firestore.collection('dreams').doc(docId).delete();
-    print("✅ Dream Deleted: $docId");
+    await FirebaseFirestore.instance.collection('dreams').doc(docId).delete();
   }
 
-Future<List<QueryDocumentSnapshot>> getDreams() async {
-  final user = _auth.currentUser;
+  // ------------------ SLEEP LOG METHODS ------------------
 
-  if (user != null) {
-    print("🔍 Fetching dreams for user: ${user.uid}");
-
-    try {
-      final snapshot = await _firestore
-          .collection('dreams')
-          .where('userId', isEqualTo: user.uid)
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      print("✅ Retrieved ${snapshot.docs.length} dreams from Firestore.");
-      
-      if (snapshot.docs.isEmpty) {
-        print("❌ No dreams found in the Firestore database for this user.");
-      }
-
-      for (var doc in snapshot.docs) {
-        print("📄 Dream: ${doc['title']} - ${doc['description']} - Timestamp: ${doc['timestamp']}");
-      }
-
-      return snapshot.docs;
-    } catch (e) {
-      print("❌ Error fetching dreams: $e");
-      return [];
-    }
-  }
-  print("❌ Error: User is not authenticated.");
-  return [];
+Future<List<QueryDocumentSnapshot>> getSleepLogs() async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('sleepLogs')
+      .get(); // <-- no orderBy
+  return snapshot.docs;
 }
+
+  Future<void> saveSleepLog(String duration, String quality) async {
+    await FirebaseFirestore.instance.collection('sleepLogs').add({
+      'duration': duration,
+      'quality': quality,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateSleepLog(String docId, String newDuration, String newQuality) async {
+    await FirebaseFirestore.instance.collection('sleepLogs').doc(docId).update({
+      'duration': newDuration,
+      'quality': newQuality,
+    });
+  }
+
+  Future<void> deleteSleepLog(String docId) async {
+    await FirebaseFirestore.instance.collection('sleepLogs').doc(docId).delete();
+  }
 }
