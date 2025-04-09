@@ -1,56 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'sleep_log_service.dart';
+import 'firestore_service.dart';
 import 'package:intl/intl.dart';
 
 class SleepLogScreen extends StatefulWidget {
+  const SleepLogScreen({super.key});
+
   @override
   _SleepLogScreenState createState() => _SleepLogScreenState();
 }
 
 class _SleepLogScreenState extends State<SleepLogScreen> {
-  final SleepLogService _sleepLogService = SleepLogService();
+  final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _qualityController = TextEditingController();
   final TextEditingController _editDurationController = TextEditingController();
-  String _quality = 'Good';
-  String _editQuality = 'Good';
+  final TextEditingController _editQualityController = TextEditingController();
+
   late Future<List<QueryDocumentSnapshot>> _sleepLogsFuture;
+  bool _isFirstLoad = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadSleepLogs();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isFirstLoad) {
+      _loadSleepLogs();
+      _isFirstLoad = false;
+    }
   }
 
   void _loadSleepLogs() {
     setState(() {
-      _sleepLogsFuture = _sleepLogService.getSleepLogs();
+      _sleepLogsFuture = _firestoreService.getSleepLogs();
     });
   }
 
   Future<void> _saveSleepLog() async {
-    final durationText = _durationController.text.trim();
-    final regex = RegExp(r'^\d{1,2}h\d{1,2}m$');
-    if (!regex.hasMatch(durationText)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid duration format. Use _h_m (e.g., 6h35m).')),
-      );
-      return;
+    final duration = _durationController.text.trim();
+    final quality = _qualityController.text.trim();
+
+    if (duration.isNotEmpty && quality.isNotEmpty) {
+      await _firestoreService.saveSleepLog(duration, quality);
+      _durationController.clear();
+      _qualityController.clear();
+      _loadSleepLogs();
     }
-
-    await _sleepLogService.saveSleepLog(durationText, _quality, DateTime.now());
-    _durationController.clear();
-    _loadSleepLogs();
-  }
-
-  Future<void> _deleteSleepLog(String docId) async {
-    await _sleepLogService.deleteSleepLog(docId);
-    _loadSleepLogs();
   }
 
   Future<void> _editSleepLog(String docId, String currentDuration, String currentQuality) async {
     _editDurationController.text = currentDuration;
-    _editQuality = currentQuality;
+    _editQualityController.text = currentQuality;
 
     showDialog(
       context: context,
@@ -61,19 +60,11 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
           children: [
             TextField(
               controller: _editDurationController,
-              decoration: InputDecoration(labelText: 'Duration (e.g., 6h35m)'),
+              decoration: InputDecoration(labelText: 'Duration (e.g. 7h30m)'),
             ),
-            SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _editQuality,
-              items: ['Good', 'Average', 'Poor']
-                  .map((quality) => DropdownMenuItem(
-                        value: quality,
-                        child: Text(quality),
-                      ))
-                  .toList(),
-              onChanged: (value) => setState(() => _editQuality = value!),
-              decoration: InputDecoration(labelText: 'Sleep Quality'),
+            TextField(
+              controller: _editQualityController,
+              decoration: InputDecoration(labelText: 'Quality (e.g. Good)'),
             ),
           ],
         ),
@@ -85,9 +76,8 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
           TextButton(
             onPressed: () async {
               final newDuration = _editDurationController.text.trim();
-              final newQuality = _editQuality;
-
-              await _sleepLogService.updateSleepLog(docId, newDuration, newQuality);
+              final newQuality = _editQualityController.text.trim();
+              await _firestoreService.updateSleepLog(docId, newDuration, newQuality);
               Navigator.of(context).pop();
               _loadSleepLogs();
             },
@@ -96,6 +86,11 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteSleepLog(String docId) async {
+    await _firestoreService.deleteSleepLog(docId);
+    _loadSleepLogs();
   }
 
   @override
@@ -109,21 +104,17 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
             TextField(
               controller: _durationController,
               decoration: InputDecoration(
-                labelText: 'Sleep Duration (e.g., 6h35m)',
+                labelText: 'Duration (e.g. 6h45m)',
                 border: OutlineInputBorder(),
               ),
             ),
             SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _quality,
-              items: ['Good', 'Average', 'Poor']
-                  .map((quality) => DropdownMenuItem(
-                        value: quality,
-                        child: Text(quality),
-                      ))
-                  .toList(),
-              onChanged: (value) => setState(() => _quality = value!),
-              decoration: InputDecoration(labelText: 'Sleep Quality'),
+            TextField(
+              controller: _qualityController,
+              decoration: InputDecoration(
+                labelText: 'Quality (e.g. Restless, Good)',
+                border: OutlineInputBorder(),
+              ),
             ),
             SizedBox(height: 10),
             ElevatedButton(
@@ -135,33 +126,37 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
               child: FutureBuilder<List<QueryDocumentSnapshot>>(
                 future: _sleepLogsFuture,
                 builder: (context, snapshot) {
+                  print('Sleep logs snapshot: ${snapshot.connectionState}');
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error loading sleep logs.'));
+                    return Center(child: Text('Error: ${snapshot.error}'));
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(child: Text('No sleep logs saved yet.'));
                   }
 
-                  final sleepLogs = snapshot.data!;
+                  final logs = snapshot.data!;
+                  print('Loaded ${logs.length} sleep logs');
 
                   return ListView.builder(
-                    itemCount: sleepLogs.length,
+                    itemCount: logs.length,
                     itemBuilder: (context, index) {
-                      final log = sleepLogs[index];
+                      final log = logs[index];
                       final docId = log.id;
                       final duration = log['duration'];
                       final quality = log['quality'];
-                      final date = (log['date'] as Timestamp).toDate();
-                      final formattedDate = DateFormat.yMMMd().format(date);
+                      final timestamp = (log.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+                      final formattedDate = timestamp != null
+                          ? DateFormat.yMMMd().format(timestamp.toDate())
+                          : 'No Date';
 
                       return Card(
                         margin: EdgeInsets.symmetric(vertical: 8.0),
                         child: ListTile(
-                          title: Text('Duration: $duration'),
-                          subtitle: Text('Quality: $quality - Date: $formattedDate'),
+                          title: Text('$formattedDate - $duration'),
+                          subtitle: Text('Quality: $quality'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [

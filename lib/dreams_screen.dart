@@ -4,6 +4,8 @@ import 'firestore_service.dart';
 import 'package:intl/intl.dart';
 
 class DreamsScreen extends StatefulWidget {
+  const DreamsScreen({super.key});
+
   @override
   _DreamsScreenState createState() => _DreamsScreenState();
 }
@@ -20,11 +22,15 @@ class _DreamsScreenState extends State<DreamsScreen> {
   String _editingDocId = '';
   bool _isEditing = false;
   String _filterKeyword = '';
+  bool _isFirstLoad = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadDreams();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isFirstLoad) {
+      _loadDreams();
+      _isFirstLoad = false;
+    }
   }
 
   void _loadDreams() {
@@ -159,14 +165,19 @@ class _DreamsScreenState extends State<DreamsScreen> {
               child: FutureBuilder<List<QueryDocumentSnapshot>>(
                 future: _dreamsFuture,
                 builder: (context, snapshot) {
+                  print('Dreams snapshot: ${snapshot.connectionState}');
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(child: Text('No dreams saved yet.'));
                   }
 
                   final dreams = _filterDreams(snapshot.data!);
+                  print('Loaded ${dreams.length} dreams');
 
                   return ListView.builder(
                     itemCount: dreams.length,
@@ -175,8 +186,10 @@ class _DreamsScreenState extends State<DreamsScreen> {
                       final docId = dream.id;
                       final title = dream['title'];
                       final description = dream['description'];
-                      final timestamp = (dream['timestamp'] as Timestamp).toDate();
-                      final formattedDate = DateFormat.yMMMd().format(timestamp);
+                      final timestamp = (dream.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+                      final formattedDate = timestamp != null
+                          ? DateFormat.yMMMd().format(timestamp.toDate())
+                          : 'No Date';
 
                       return Card(
                         margin: EdgeInsets.symmetric(vertical: 8.0),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sleep_log_service.dart';
 
 class ViewSleepLogScreen extends StatefulWidget {
@@ -8,7 +7,7 @@ class ViewSleepLogScreen extends StatefulWidget {
   final String quality;
   final DateTime timestamp;
 
-  ViewSleepLogScreen({
+  const ViewSleepLogScreen({super.key, 
     required this.docId,
     required this.duration,
     required this.quality,
