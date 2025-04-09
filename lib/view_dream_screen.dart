@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
 
 class ViewDreamScreen extends StatefulWidget {
@@ -8,7 +7,7 @@ class ViewDreamScreen extends StatefulWidget {
   final String description;
   final DateTime timestamp;
 
-  ViewDreamScreen({
+  const ViewDreamScreen({super.key, 
     required this.docId,
     required this.title,
     required this.description,

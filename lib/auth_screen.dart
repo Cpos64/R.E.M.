@@ -6,7 +6,7 @@ class AuthScreen extends StatefulWidget {
   final Function(bool)? toggleTheme;
   final bool isDarkTheme;
 
-  AuthScreen({this.toggleTheme, this.isDarkTheme = false});
+  const AuthScreen({super.key, this.toggleTheme, this.isDarkTheme = false});
 
   @override
   _AuthScreenState createState() => _AuthScreenState();

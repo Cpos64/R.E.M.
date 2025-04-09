@@ -6,7 +6,7 @@ import 'screens/login_screen.dart';
 import 'home_screen.dart';
 import 'dreams_screen.dart';
 import 'sleep_log_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'firestore_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,30 +25,27 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _isDarkTheme = false;
+  bool _themeLoaded = false; // ✅ Prevent loading multiple times
+  final FirestoreService _firestoreService = FirestoreService();
 
-  @override
-  void initState() {
-    super.initState();
-    _loadThemePreference();
-  }
-
+  // ✅ Load user-specific theme from Firestore
   Future<void> _loadThemePreference() async {
-    final prefs = await SharedPreferences.getInstance();
+    final theme = await _firestoreService.loadUserTheme();
     setState(() {
-      _isDarkTheme = prefs.getBool('isDarkTheme') ?? false;
+      _isDarkTheme = theme;
     });
   }
 
+  // ✅ Save user-specific theme to Firestore
   Future<void> _saveThemePreference(bool isDarkTheme) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkTheme', isDarkTheme);
+    await _firestoreService.saveUserTheme(isDarkTheme);
   }
 
   void _toggleTheme(bool value) {
     setState(() {
       _isDarkTheme = value;
-      _saveThemePreference(value);
     });
+    _saveThemePreference(value);
   }
 
   @override
@@ -56,7 +53,19 @@ class _MyAppState extends State<MyApp> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        final isLoggedIn = snapshot.hasData;
+        final user = snapshot.data;
+        final isLoggedIn = user != null;
+
+        // ✅ Load theme only once when user is confirmed
+        if (isLoggedIn && !_themeLoaded) {
+          _loadThemePreference();
+          _themeLoaded = true;
+        }
+
+        // 🔁 Reset on logout
+        if (!isLoggedIn && _themeLoaded) {
+          _themeLoaded = false;
+        }
 
         return MaterialApp(
           title: 'R.E.M',

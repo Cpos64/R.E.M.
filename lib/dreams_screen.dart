@@ -4,6 +4,8 @@ import 'firestore_service.dart';
 import 'package:intl/intl.dart';
 
 class DreamsScreen extends StatefulWidget {
+  const DreamsScreen({super.key});
+
   @override
   _DreamsScreenState createState() => _DreamsScreenState();
 }
