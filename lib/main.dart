@@ -7,6 +7,7 @@ import 'home_screen.dart';
 import 'dreams_screen.dart';
 import 'sleep_log_screen.dart';
 import 'firestore_service.dart';
+import 'package:google_fonts/google_fonts.dart'; // ✅ optional font
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,20 +68,51 @@ class _MyAppState extends State<MyApp> {
           _themeLoaded = false;
         }
 
-        return MaterialApp(
-          title: 'R.E.M',
-          theme: _isDarkTheme ? ThemeData.dark() : ThemeData.light(),
-          debugShowCheckedModeBanner: false,
-          home: isLoggedIn
-              ? HomeScreen(
-                  toggleTheme: _toggleTheme,
-                  isDarkTheme: _isDarkTheme,
-                )
-              : const LoginScreen(),
-          routes: {
-            '/dreams': (context) => DreamsScreen(),
-            '/sleep_logs': (context) => SleepLogScreen(),
-          },
+        final lightTheme = ThemeData(
+          brightness: Brightness.light,
+          useMaterial3: true,
+          colorSchemeSeed: Colors.indigo,
+          textTheme: GoogleFonts.latoTextTheme(), // ✅ Optional custom font
+          cardTheme: CardTheme(
+            elevation: 2,
+            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        );
+
+        final darkTheme = ThemeData(
+          brightness: Brightness.dark,
+          useMaterial3: true,
+          colorSchemeSeed: Colors.indigo,
+          textTheme: GoogleFonts.latoTextTheme(ThemeData.dark().textTheme),
+          cardTheme: CardTheme(
+            elevation: 2,
+            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        );
+
+        return AnimatedTheme(
+          duration: const Duration(milliseconds: 300), // ✅ Smooth transition
+          curve: Curves.easeInOut,
+          data: _isDarkTheme ? darkTheme : lightTheme,
+          child: MaterialApp(
+            title: 'R.E.M',
+            debugShowCheckedModeBanner: false,
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            themeMode: _isDarkTheme ? ThemeMode.dark : ThemeMode.light,
+            home: isLoggedIn
+                ? HomeScreen(
+                    toggleTheme: _toggleTheme,
+                    isDarkTheme: _isDarkTheme,
+                  )
+                : const LoginScreen(),
+            routes: {
+              '/dreams': (context) => DreamsScreen(),
+              '/sleep_logs': (context) => SleepLogScreen(),
+            },
+          ),
         );
       },
     );
