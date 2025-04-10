@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
 import 'package:intl/intl.dart';
+import 'package:rem/widgets/sleep_entry_card.dart';
+
 
 class SleepLogScreen extends StatefulWidget {
   const SleepLogScreen({super.key});
@@ -101,26 +103,40 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _durationController,
-              decoration: InputDecoration(
-                labelText: 'Duration (e.g. 6h45m)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _qualityController,
-              decoration: InputDecoration(
-                labelText: 'Quality (e.g. Restless, Good)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveSleepLog,
-              child: Text('Save Sleep Log'),
-            ),
+            Card(
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  margin: const EdgeInsets.symmetric(vertical: 12),
+  elevation: 2,
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _durationController,
+          decoration: InputDecoration(
+            labelText: 'Duration (e.g. 6h45m)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _qualityController,
+          decoration: InputDecoration(
+            labelText: 'Quality (e.g. Restless, Good)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: _saveSleepLog,
+          child: Text('Save Sleep Log'),
+        ),
+      ],
+    ),
+  ),
+),
+
             SizedBox(height: 20),
             Expanded(
               child: FutureBuilder<List<QueryDocumentSnapshot>>(
@@ -152,25 +168,12 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                           ? DateFormat.yMMMd().format(timestamp.toDate())
                           : 'No Date';
 
-                      return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8.0),
-                        child: ListTile(
-                          title: Text('$formattedDate - $duration'),
-                          subtitle: Text('Quality: $quality'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit),
-                                onPressed: () => _editSleepLog(docId, duration, quality),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete),
-                                onPressed: () => _deleteSleepLog(docId),
-                              ),
-                            ],
-                          ),
-                        ),
+                                            return SleepEntryCard(
+                        duration: duration,
+                        quality: quality,
+                        date: formattedDate,
+                        onEdit: () => _editSleepLog(docId, duration, quality),
+                        onDelete: () => _deleteSleepLog(docId),
                       );
                     },
                   );

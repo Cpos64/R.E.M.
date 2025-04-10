@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
 import 'package:intl/intl.dart';
+import 'package:rem/widgets/dream_entry_card.dart';
+
 
 class DreamsScreen extends StatefulWidget {
   const DreamsScreen({super.key});
@@ -139,27 +141,41 @@ class _DreamsScreenState extends State<DreamsScreen> {
               },
             ),
             SizedBox(height: 10),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'Dream Title',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                labelText: 'Dream Description',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 4,
-            ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveDream,
-              child: Text(_isEditing ? 'Update Dream' : 'Save Dream'),
-            ),
+            Card(
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  margin: const EdgeInsets.symmetric(vertical: 12),
+  elevation: 2,
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _titleController,
+          decoration: InputDecoration(
+            labelText: 'Dream Title',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _descriptionController,
+          decoration: InputDecoration(
+            labelText: 'Dream Description',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 4,
+        ),
+        const SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: _saveDream,
+          child: Text(_isEditing ? 'Update Dream' : 'Save Dream'),
+        ),
+      ],
+    ),
+  ),
+),
+
             SizedBox(height: 20),
             Expanded(
               child: FutureBuilder<List<QueryDocumentSnapshot>>(
@@ -191,25 +207,11 @@ class _DreamsScreenState extends State<DreamsScreen> {
                           ? DateFormat.yMMMd().format(timestamp.toDate())
                           : 'No Date';
 
-                      return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8.0),
-                        child: ListTile(
-                          title: Text(title),
-                          subtitle: Text('$formattedDate\n$description'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit),
-                                onPressed: () => _editDream(docId, title, description),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete),
-                                onPressed: () => _deleteDream(docId),
-                              ),
-                            ],
-                          ),
-                        ),
+                                            return DreamEntryCard(
+                        title: '$title • $formattedDate',
+                        description: description,
+                        onEdit: () => _editDream(docId, title, description),
+                        onDelete: () => _deleteDream(docId),
                       );
                     },
                   );
