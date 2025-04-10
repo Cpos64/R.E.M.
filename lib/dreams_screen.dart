@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
 import 'package:intl/intl.dart';
+import 'package:rem/widgets/dream_entry_card.dart';
+
 
 class DreamsScreen extends StatefulWidget {
   const DreamsScreen({super.key});
@@ -17,6 +19,58 @@ class _DreamsScreenState extends State<DreamsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _editTitleController = TextEditingController();
   final TextEditingController _editDescriptionController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+
+void _showAddDreamDialog() {
+  _titleController.clear();
+  _descriptionController.clear();
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => SingleChildScrollView(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        top: 20,
+        left: 20,
+        right: 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _titleController,
+            autofocus: true,
+            decoration: InputDecoration(labelText: 'Title'),
+          ),
+          SizedBox(height: 10),
+          TextField(
+            controller: _descriptionController,
+            decoration: InputDecoration(labelText: 'Description'),
+            maxLines: 5,
+          ),
+          SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: () async {
+              await _saveDream();
+              Navigator.of(context).pop();
+              _scrollToBottom();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Dream saved!')),
+              );
+            },
+            child: Text('Save Dream'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
   late Future<List<QueryDocumentSnapshot>> _dreamsFuture;
   String _editingDocId = '';
@@ -32,6 +86,19 @@ class _DreamsScreenState extends State<DreamsScreen> {
       _isFirstLoad = false;
     }
   }
+
+  void _scrollToBottom() {
+  Future.delayed(Duration(milliseconds: 200), () {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  });
+}
+
 
   void _loadDreams() {
     setState(() {
@@ -121,6 +188,10 @@ class _DreamsScreenState extends State<DreamsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+  onPressed: _showAddDreamDialog,
+  child: Icon(Icons.add),
+),
       appBar: AppBar(title: Text('Dream Journal')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -138,29 +209,7 @@ class _DreamsScreenState extends State<DreamsScreen> {
                 });
               },
             ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'Dream Title',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                labelText: 'Dream Description',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 4,
-            ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveDream,
-              child: Text(_isEditing ? 'Update Dream' : 'Save Dream'),
-            ),
-            SizedBox(height: 20),
+            SizedBox(height: 16),
             Expanded(
               child: FutureBuilder<List<QueryDocumentSnapshot>>(
                 future: _dreamsFuture,
@@ -181,6 +230,7 @@ class _DreamsScreenState extends State<DreamsScreen> {
 
                   return ListView.builder(
                     itemCount: dreams.length,
+                    controller: _scrollController,
                     itemBuilder: (context, index) {
                       final dream = dreams[index];
                       final docId = dream.id;
@@ -191,25 +241,11 @@ class _DreamsScreenState extends State<DreamsScreen> {
                           ? DateFormat.yMMMd().format(timestamp.toDate())
                           : 'No Date';
 
-                      return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8.0),
-                        child: ListTile(
-                          title: Text(title),
-                          subtitle: Text('$formattedDate\n$description'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit),
-                                onPressed: () => _editDream(docId, title, description),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete),
-                                onPressed: () => _deleteDream(docId),
-                              ),
-                            ],
-                          ),
-                        ),
+                                            return DreamEntryCard(
+                        title: '$title • $formattedDate',
+                        description: description,
+                        onEdit: () => _editDream(docId, title, description),
+                        onDelete: () => _deleteDream(docId),
                       );
                     },
                   );

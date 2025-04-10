@@ -5,6 +5,7 @@ class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // -------- DREAMS --------
   Future<List<QueryDocumentSnapshot>> getDreams() async {
     final user = _auth.currentUser;
     if (user == null) return [];
@@ -41,8 +42,7 @@ class FirestoreService {
     await _firestore.collection('dreams').doc(docId).delete();
   }
 
-  // ------------------ SLEEP LOG METHODS ------------------
-
+  // -------- SLEEP LOGS --------
   Future<List<QueryDocumentSnapshot>> getSleepLogs() async {
     final user = _auth.currentUser;
     if (user == null) return [];
@@ -56,22 +56,50 @@ class FirestoreService {
     return snapshot.docs;
   }
 
-  Future<void> saveSleepLog(String duration, String quality) async {
+  Future<void> saveSleepLog({
+    required String totalDuration,
+    required String deepSleep,
+    required String remSleep,
+    required String awakeTime,
+    required String quality,
+    String? notes,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _firestore.collection('sleep_logs').add({
-      'duration': duration,
-      'quality': quality,
-      'timestamp': FieldValue.serverTimestamp(),
-      'userId': user.uid,
-    });
+    final data = {
+      "totalDuration": totalDuration,
+      "deepSleep": deepSleep,
+      "remSleep": remSleep,
+      "awakeTime": awakeTime,
+      "quality": quality,
+      "notes": notes ?? "",
+      "timestamp": Timestamp.now(),
+      "userId": user.uid,
+    };
+
+    print('Saving sleep log for userId: ${user.uid}');
+    print('Data: $data');
+
+    await _firestore.collection('sleep_logs').add(data);
   }
 
-  Future<void> updateSleepLog(String docId, String newDuration, String newQuality) async {
+  Future<void> updateSleepLog(
+    String docId,
+    String totalDuration,
+    String deepSleep,
+    String remSleep,
+    String awakeTime,
+    String quality,
+    String? notes,
+  ) async {
     await _firestore.collection('sleep_logs').doc(docId).update({
-      'duration': newDuration,
-      'quality': newQuality,
+      "totalDuration": totalDuration,
+      "deepSleep": deepSleep,
+      "remSleep": remSleep,
+      "awakeTime": awakeTime,
+      "quality": quality,
+      "notes": notes ?? "",
     });
   }
 
@@ -79,8 +107,7 @@ class FirestoreService {
     await _firestore.collection('sleep_logs').doc(docId).delete();
   }
 
-    // -------- USER THEME PREFERENCES --------
-
+  // -------- THEME PREFERENCES --------
   Future<void> saveUserTheme(bool isDarkTheme) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -97,5 +124,4 @@ class FirestoreService {
     final doc = await _firestore.collection('users').doc(user.uid).get();
     return doc.data()?['isDarkTheme'] ?? false;
   }
-
 }
