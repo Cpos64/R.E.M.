@@ -43,18 +43,38 @@ class FirestoreService {
   }
 
   // -------- SLEEP LOGS --------
-  Future<List<QueryDocumentSnapshot>> getSleepLogs() async {
-    final user = _auth.currentUser;
-    if (user == null) return [];
+Future<List<QueryDocumentSnapshot>> getSleepLogs() async {
+  final user = FirebaseAuth.instance.currentUser;
+  final snapshot = await FirebaseFirestore.instance
+      .collection('sleep_logs')
+      .where('userId', isEqualTo: user!.uid)
+      .orderBy('timestamp', descending: true)
+      .get();
 
-    final snapshot = await _firestore
-        .collection('sleep_logs')
-        .where('userId', isEqualTo: user.uid)
-        .orderBy('timestamp', descending: true)
-        .get();
+  return snapshot.docs;
+}
 
-    return snapshot.docs;
-  }
+Future<List<Map<String, dynamic>>> getLast7SleepLogsForChart() async {
+  final user = FirebaseAuth.instance.currentUser;
+  final snapshot = await FirebaseFirestore.instance
+      .collection('sleep_logs')
+      .where('userId', isEqualTo: user!.uid)
+      .orderBy('timestamp', descending: true)
+      .limit(7)
+      .get();
+
+  return snapshot.docs.map((doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return {
+      'date': (data['timestamp'] as Timestamp).toDate(),
+      'totalSleep': data['totalDuration'] ?? 0,
+      'deepSleep': data['deepSleep'] ?? 0,
+      'remSleep': data['remSleep'] ?? 0,
+      'awakeTime': data['awakeTime'] ?? 0,
+    };
+  }).toList().reversed.toList(); // oldest to newest
+}
+
 
   Future<void> saveSleepLog({
     required String totalDuration,

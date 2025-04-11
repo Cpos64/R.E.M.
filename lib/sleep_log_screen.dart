@@ -3,6 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
 import 'package:intl/intl.dart';
 import 'package:rem/widgets/sleep_entry_card.dart';
+import 'widgets/sleep_line_chart.dart';
+import 'widgets/legend_item.dart';
+import 'widgets/sleep_chart_pager.dart';
+
 
 class SleepLogScreen extends StatefulWidget {
   const SleepLogScreen({super.key});
@@ -22,6 +26,15 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   late Future<List<QueryDocumentSnapshot>> _sleepLogsFuture;
   bool _isFirstLoad = true;
 
+List<Map<String, dynamic>> sleepChartData = [];
+
+void _loadChartData() async {
+    final chartData = await _firestoreService.getLast7SleepLogsForChart();
+    setState(() {
+      sleepChartData = chartData;
+    });
+  }
+
   bool isValidDurationFormat(String input) {
   final regex = RegExp(r'^(\d+h)?(\d+m)?$');
   return regex.hasMatch(input.trim());
@@ -33,8 +46,10 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     super.didChangeDependencies();
     if (_isFirstLoad) {
       _loadSleepLogs();
+      _loadChartData();
       _isFirstLoad = false;
-    }
+}
+
   }
 
   void _loadSleepLogs() {
@@ -241,71 +256,62 @@ Future<void> _editSleepLog(
         onPressed: _showAddSleepDialog,
         child: Icon(Icons.add),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            SizedBox(height: 20),
-            Expanded(
-              child: FutureBuilder<List<QueryDocumentSnapshot>>(
-                future: _sleepLogsFuture,
-                builder: (context, snapshot) {
-                  print('Sleep logs snapshot: ${snapshot.connectionState}');
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(child: Text('No sleep logs saved yet.'));
-                  }
+body: ListView(
+  padding: const EdgeInsets.all(16.0),
+  physics: BouncingScrollPhysics(), // Optional: for iOS-style smooth bounce
+  shrinkWrap: true,                 // Important if you run into “unbounded height” issues
+children: [
+  if (sleepChartData.isNotEmpty)
+    SleepChartPager(sleepData: sleepChartData),
+  FutureBuilder<List<QueryDocumentSnapshot>>(
+    future: _sleepLogsFuture,
+    builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(child: Text('No sleep logs saved yet.'));
+        }
 
-                  final logs = snapshot.data!;
-                  print('Loaded ${logs.length} sleep logs');
+        final logs = snapshot.data!;
+        return Column(
+          children: logs.map((log) {
+            final docId = log.id;
+            final data = log.data() as Map<String, dynamic>;
+            final duration = data.containsKey('totalDuration')
+                ? data['totalDuration']
+                : data['duration'] ?? 'Unknown';
+            final quality = data['quality'] ?? 'Unknown';
+            final timestamp = data['timestamp'] as Timestamp?;
+            final formattedDate = timestamp != null
+                ? DateFormat.yMMMd().format(timestamp.toDate())
+                : 'No Date';
 
-                  return ListView.builder(
-                    itemCount: logs.length,
-                    controller: _scrollController,
-                    itemBuilder: (context, index) {
-                      final log = logs[index];
-                      final docId = log.id;
-                      final data = log.data() as Map<String, dynamic>;
-                      final duration = data.containsKey('totalDuration')
-                          ? data['totalDuration']
-                          : data['duration'] ?? 'Unknown';
-
-                      final quality = log['quality'] ?? 'Unknown';
-
-                      final timestamp = (log.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
-                      final formattedDate = timestamp != null
-                          ? DateFormat.yMMMd().format(timestamp.toDate())
-                          : 'No Date';
-
-                      return SleepEntryCard(
-                        duration: duration,
-                        quality: quality,
-                        date: formattedDate,
-                        onEdit: () => _editSleepLog(
-                        docId,
-                        data.containsKey('totalDuration') ? data['totalDuration'] : data['duration'] ?? '',
-                        data['deepSleep'] ?? '',
-                        data['remSleep'] ?? '',
-                        data['awakeTime'] ?? '',
-                        data['quality'] ?? '',
-                        data['notes'] ?? '',
-                      ),
-
-                        onDelete: () => _deleteSleepLog(docId),
-                      );
-                    },
-                  );
-                },
+            return SleepEntryCard(
+              duration: duration,
+              quality: quality,
+              date: formattedDate,
+              onEdit: () => _editSleepLog(
+                docId,
+                data.containsKey('totalDuration') ? data['totalDuration'] : data['duration'] ?? '',
+                data['deepSleep'] ?? '',
+                data['remSleep'] ?? '',
+                data['awakeTime'] ?? '',
+                data['quality'] ?? '',
+                data['notes'] ?? '',
               ),
-            ),
-          ],
-        ),
-      ),
+              onDelete: () => _deleteSleepLog(docId),
+            );
+          }).toList(),
+        );
+      },
+    ),
+  ],
+),
     );
   }
 }
+
