@@ -4,11 +4,7 @@ class LegendItem extends StatelessWidget {
   final Color color;
   final String label;
 
-  const LegendItem({
-    super.key,
-    required this.color,
-    required this.label,
-  });
+  const LegendItem({super.key, required this.color, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -17,13 +13,13 @@ class LegendItem extends StatelessWidget {
         Container(
           width: 12,
           height: 12,
-          margin: const EdgeInsets.only(right: 6),
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
           ),
         ),
-        Text(label),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }

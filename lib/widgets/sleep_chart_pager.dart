@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'sleep_line_chart.dart';
+import 'sleep_score_chart.dart';
+import 'sleep_stage_bar_chart.dart';
 
 class SleepChartPager extends StatefulWidget {
   final List<Map<String, dynamic>> sleepData;
@@ -14,15 +15,14 @@ class _SleepChartPagerState extends State<SleepChartPager> {
   final PageController _controller = PageController();
   int _currentPage = 0;
 
-  void _goToPage(int page) {
-    _controller.animateToPage(
-      page,
-      duration: Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-    setState(() {
-      _currentPage = page;
-    });
+  void _goToPage(int index) {
+    if (index >= 0 && index <= 1) {
+      _controller.animateToPage(
+        index,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   @override
@@ -30,37 +30,34 @@ class _SleepChartPagerState extends State<SleepChartPager> {
     return Column(
       children: [
         SizedBox(
-          height: 250,
+          height: 420,
           child: PageView(
             controller: _controller,
-            onPageChanged: (index) => setState(() => _currentPage = index),
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
             children: [
-              SleepLineChart(
-                sleepData: widget.sleepData,
-                showOnlyTotal: true,
-              ),
-              SleepLineChart(
-                sleepData: widget.sleepData,
-                showOnlyTotal: false,
-              ),
+              SleepScoreChart(sleepData: widget.sleepData),
+              SleepStageBarChart(sleepData: widget.sleepData),
             ],
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              onPressed: _currentPage > 0 ? () => _goToPage(0) : null,
-              icon: Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back_ios),
+              onPressed: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
             ),
-            Text(
-              _currentPage == 0 ? 'Total Sleep' : 'Deep / REM / Awake',
-              style: TextStyle(fontSize: 14),
-            ),
+            const SizedBox(width: 8),
+            Text('Chart ${_currentPage + 1} of 2'),
+            const SizedBox(width: 8),
             IconButton(
-              onPressed: _currentPage < 1 ? () => _goToPage(1) : null,
-              icon: Icon(Icons.arrow_forward),
+              icon: const Icon(Icons.arrow_forward_ios),
+              onPressed: _currentPage < 1 ? () => _goToPage(_currentPage + 1) : null,
             ),
           ],
         ),
