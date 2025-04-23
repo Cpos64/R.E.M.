@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'sleep_line_chart.dart';
-import 'package:rem/widgets/legend_item.dart';
+import 'sleep_score_chart.dart';
+import 'sleep_stage_bar_chart.dart';
 
 class SleepChartPager extends StatefulWidget {
   final List<Map<String, dynamic>> sleepData;
@@ -15,72 +15,53 @@ class _SleepChartPagerState extends State<SleepChartPager> {
   final PageController _controller = PageController();
   int _currentPage = 0;
 
-  void _goToPage(int page) {
-    _controller.animateToPage(
-      page,
-      duration: Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-    setState(() {
-      _currentPage = page;
-    });
+  void _goToPage(int index) {
+    if (index >= 0 && index <= 1) {
+      _controller.animateToPage(
+        index,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
-@override
-Widget build(BuildContext context) {
-  return Column(
-    children: [
-      SizedBox(
-        height: 250,
-        child: PageView(
-          controller: _controller,
-          onPageChanged: (index) => setState(() => _currentPage = index),
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 420,
+          child: PageView(
+            controller: _controller,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            children: [
+              SleepScoreChart(sleepData: widget.sleepData),
+              SleepStageBarChart(sleepData: widget.sleepData),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SleepLineChart(
-              sleepData: widget.sleepData,
-              showOnlyTotal: true,
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios),
+              onPressed: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
             ),
-            SleepLineChart(
-              sleepData: widget.sleepData,
-              showOnlyTotal: false,
+            const SizedBox(width: 8),
+            Text('Chart ${_currentPage + 1} of 2'),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios),
+              onPressed: _currentPage < 1 ? () => _goToPage(_currentPage + 1) : null,
             ),
           ],
         ),
-      ),
-      const SizedBox(height: 8),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: _currentPage > 0 ? () => _goToPage(0) : null,
-            icon: const Icon(Icons.arrow_back),
-          ),
-          Text(
-            _currentPage == 0 ? 'Total Sleep' : 'Deep / REM / Awake',
-            style: const TextStyle(fontSize: 14),
-          ),
-          IconButton(
-            onPressed: _currentPage < 1 ? () => _goToPage(1) : null,
-            icon: const Icon(Icons.arrow_forward),
-          ),
-        ],
-      ),
-if (_currentPage == 1)
-  Padding(
-    padding: const EdgeInsets.only(top: 12.0),
-    child: Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 24,
-      runSpacing: 8,
-      children: const [
-        LegendItem(color: Colors.green, label: 'Deep'),
-        LegendItem(color: Colors.purple, label: 'REM'),
-        LegendItem(color: Colors.red, label: 'Awake'),
       ],
-    ),
-  ),
-  
-    ],
-  );
-}
+    );
+  }
 }

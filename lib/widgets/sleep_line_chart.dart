@@ -16,8 +16,6 @@ class SleepLineChart extends StatelessWidget {
     if (duration == null) return 0.0;
 
     final durationStr = duration.toString();
-
-    // Handle if the value is a plain number of minutes like 420
     if (RegExp(r'^\d+\$').hasMatch(durationStr)) {
       return double.tryParse(durationStr) ?? 0.0;
     }
@@ -67,23 +65,18 @@ class SleepLineChart extends StatelessWidget {
     final maxY = findMaxY() + 30;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
-      child: SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 24.0),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: 420),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              height: 285,
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(top: 8.0),
+                padding: const EdgeInsets.only(bottom: 32.0),
                 child: LineChart(
                   LineChartData(
-                    clipData: FlClipData(
-                      top: false,
-                      bottom: false,
-                      left: false,
-                      right: false,
-                    ),
+                    clipData: FlClipData.all(),
                     minX: 0,
                     maxX: sleepData.length > 1
                         ? (sleepData.length - 1).toDouble() + 0.3
@@ -107,7 +100,6 @@ class SleepLineChart extends StatelessWidget {
                             int totalMinutes = value.toInt();
                             int hours = totalMinutes ~/ 60;
                             int minutes = totalMinutes % 60;
-
                             return Text(
                               minutes == 0 ? '${hours}h' : '${hours}h${minutes}m',
                               style: TextStyle(fontSize: 10),
@@ -134,41 +126,57 @@ class SleepLineChart extends StatelessWidget {
                     lineTouchData: LineTouchData(
                       enabled: true,
                       handleBuiltInTouches: true,
+                      getTouchedSpotIndicator: (barData, indicators) {
+                        return indicators.map((index) {
+                          return TouchedSpotIndicatorData(
+                            FlLine(color: Colors.white24, strokeWidth: 1),
+                            FlDotData(show: true),
+                          );
+                        }).toList();
+                      },
                       touchTooltipData: LineTouchTooltipData(
                         tooltipBgColor: Colors.blueAccent,
-                        fitInsideHorizontally: true,
-                        showOnTopOfTheChartBoxArea: true,
+                        tooltipRoundedRadius: 8,
                         tooltipMargin: 16,
+                        fitInsideHorizontally: true,
+                        fitInsideVertically: true,
                         getTooltipItems: (touchedSpots) {
                           if (touchedSpots.isEmpty) return [];
-
-                          final spot = touchedSpots.first;
-                          final index = spot.x.toInt();
+                          final index = touchedSpots.first.x.toInt();
                           final date = sleepData[index]['date'] as DateTime;
-
+                          List<LineTooltipItem> tooltips = [];
                           if (showOnlyTotal) {
                             final total = sleepData[index]['totalSleep'];
-                            return [
-                              LineTooltipItem(
-                                '${DateFormat('E').format(date)}\nTotal: $total',
-                                const TextStyle(color: Colors.white, fontSize: 12),
-                              ),
-                            ];
-                          }
-
-                          final deepSleep = sleepData[index]['deepSleep'];
-                          final remSleep = sleepData[index]['remSleep'];
-                          final awakeTime = sleepData[index]['awakeTime'];
-
-                          return [
-                            LineTooltipItem(
-                              '${DateFormat('E').format(date)}\n'
-                              'Deep: ${deepSleep}m\n'
-                              'REM: ${remSleep}m\n'
-                              'Awake: ${awakeTime}m',
+                            tooltips.add(LineTooltipItem(
+                              '${DateFormat('E').format(date)}\nTotal: $total',
                               const TextStyle(color: Colors.white, fontSize: 12),
-                            ),
-                          ];
+                            ));
+                          } else {
+                            final deep = sleepData[index]['deepSleep'];
+                            final rem = sleepData[index]['remSleep'];
+                            final awake = sleepData[index]['awakeTime'];
+                            tooltips.add(LineTooltipItem(
+                              '${DateFormat('E').format(date)}',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ));
+                            if (deep != null) {
+                              tooltips.add(LineTooltipItem('Deep: ${deep}m',
+                                  const TextStyle(color: Colors.white, fontSize: 12)));
+                            }
+                            if (rem != null) {
+                              tooltips.add(LineTooltipItem('REM: ${rem}m',
+                                  const TextStyle(color: Colors.white, fontSize: 12)));
+                            }
+                            if (awake != null) {
+                              tooltips.add(LineTooltipItem('Awake: ${awake}m',
+                                  const TextStyle(color: Colors.white, fontSize: 12)));
+                            }
+                          }
+                          return tooltips;
                         },
                       ),
                     ),
@@ -233,7 +241,7 @@ class SleepLineChart extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 12.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                  children: const [
                     LegendItemDot(label: 'Deep', color: Color(0xFF80CBC4)),
                     SizedBox(width: 16),
                     LegendItemDot(label: 'REM', color: Color(0xFFCE93D8)),
@@ -253,7 +261,7 @@ class LegendItemDot extends StatelessWidget {
   final String label;
   final Color color;
 
-  const LegendItemDot({required this.label, required this.color});
+  const LegendItemDot({super.key, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -273,3 +281,6 @@ class LegendItemDot extends StatelessWidget {
     );
   }
 }
+
+
+
