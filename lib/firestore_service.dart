@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -120,6 +121,7 @@ Future<void> saveSleepLogAuto({
   required String deepSleep,
   required String remSleep,
   required String awakeTime,
+  required String timeInBed,
   required String timeAsleep,
   required String timeAwake,
   required String quality,
@@ -149,6 +151,29 @@ Future<void> saveSleepLogAuto({
 
   final lightStr = '${(light ~/ 60)}h${(light % 60).round()}m';
 
+DateTime parsedTimeInBed = DateFormat.jm().parse(timeInBed);
+DateTime parsedTimeAsleep = DateFormat.jm().parse(timeAsleep);
+DateTime parsedTimeAwake = DateFormat.jm().parse(timeAwake);
+
+DateTime now = DateTime.now();
+parsedTimeInBed = DateTime(now.year, now.month, now.day, parsedTimeInBed.hour, parsedTimeInBed.minute);
+parsedTimeAsleep = DateTime(now.year, now.month, now.day, parsedTimeAsleep.hour, parsedTimeAsleep.minute);
+parsedTimeAwake = DateTime(now.year, now.month, now.day, parsedTimeAwake.hour, parsedTimeAwake.minute);
+
+// Handle midnight rollover if needed
+if (parsedTimeAsleep.isBefore(parsedTimeInBed)) {
+  parsedTimeAsleep = parsedTimeAsleep.add(const Duration(days: 1));
+}
+if (parsedTimeAwake.isBefore(parsedTimeAsleep)) {
+  parsedTimeAwake = parsedTimeAwake.add(const Duration(days: 1));
+}
+
+// Calculate time to fall asleep
+Duration timeToFallAsleep = parsedTimeAsleep.difference(parsedTimeInBed);
+final timeToFallAsleepReadable = '${timeToFallAsleep.inMinutes} min';
+final timeToFallAsleepISO = timeToFallAsleep.toString(); // e.g., "0:15:00.000000"
+
+
   final data = {
     "totalDuration": totalDuration,
     "deepSleep": deepSleep,
@@ -158,6 +183,9 @@ Future<void> saveSleepLogAuto({
     "sleepScore": sleepScore,
     "timeAsleep": timeAsleep,
     "timeAwake": timeAwake,
+    "timeInBed": parsedTimeInBed.toIso8601String(),
+    "timeToFallAsleep": timeToFallAsleepReadable,
+    "timeToFallAsleepISO": timeToFallAsleepISO,
     "quality": quality,
     "notes": notes ?? "",
     "timestamp": Timestamp.now(),

@@ -5,6 +5,12 @@ class SleepEntryCard extends StatelessWidget {
   final String quality;
   final String? notes;
   final String date;
+  final String? timeToFallAsleep;
+  final String? timeInBed;
+  final String? deepSleep;
+  final String? remSleep;
+  final String? lightSleep;
+  final String? awakeTime;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -13,6 +19,12 @@ class SleepEntryCard extends StatelessWidget {
     required this.quality,
     required this.date,
     this.notes,
+    this.timeToFallAsleep,
+    this.timeInBed,
+    this.deepSleep,
+    this.remSleep,
+    this.lightSleep,
+    this.awakeTime,
     required this.onEdit,
     required this.onDelete,
     super.key,
@@ -34,6 +46,24 @@ class SleepEntryCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text('Quality: $quality',
                 style: Theme.of(context).textTheme.bodyMedium),
+            if (timeToFallAsleep != null)
+              Text('Time to fall asleep: $timeToFallAsleep',
+                  style: Theme.of(context).textTheme.bodySmall),
+            if (timeInBed != null)
+              Text('Time in bed: $timeInBed',
+                  style: Theme.of(context).textTheme.bodySmall),
+            if (deepSleep != null)
+              Text('Deep: $deepSleep',
+                  style: Theme.of(context).textTheme.bodySmall),
+            if (remSleep != null)
+              Text('REM: $remSleep',
+                  style: Theme.of(context).textTheme.bodySmall),
+            if (lightSleep != null)
+              Text('Light: $lightSleep',
+                  style: Theme.of(context).textTheme.bodySmall),
+            if (awakeTime != null)
+              Text('Awake: $awakeTime',
+                  style: Theme.of(context).textTheme.bodySmall),
             if (notes != null && notes!.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text('Notes: ${notes!}',

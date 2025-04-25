@@ -16,6 +16,18 @@ class SleepLogScreen extends StatefulWidget {
   _SleepLogScreenState createState() => _SleepLogScreenState();
 }
 
+class SleepInputField {
+  final String label;
+  final TextEditingController controller;
+  final bool isDuration; // true = use timer picker, false = use time picker
+
+  SleepInputField({
+    required this.label,
+    required this.controller,
+    required this.isDuration,
+  });
+}
+
 class _SleepLogScreenState extends State<SleepLogScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   late Future<List<QueryDocumentSnapshot>> _sleepLogsFuture;
@@ -30,6 +42,8 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   final _wakeController = TextEditingController();
   final _qualityController = TextEditingController();
   final _notesController = TextEditingController();
+  final _inBedController = TextEditingController();
+
 
   @override
   void didChangeDependencies() {
@@ -54,11 +68,20 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     });
   }
 
-Future<void> _showDurationPickerWithFlow({
-  required List<TextEditingController> controllers,
+  void _navigateToInput(List<SleepInputField> inputs, int index) {
+  final input = inputs[index];
+  input.isDuration
+    ? _showUnifiedPicker(inputs: inputs, currentIndex: index)
+    : _showUnifiedTimePicker(inputs: inputs, currentIndex: index);
+}
+
+
+Future<void> _showUnifiedPicker({
+  required List<SleepInputField> inputs,
   required int currentIndex,
 }) async {
-  final controller = controllers[currentIndex];
+  final input = inputs[currentIndex];
+  final controller = input.controller;
   final initialValue = controller.text;
   final minutes = _parseToMinutes(initialValue);
   Duration selected = Duration(minutes: minutes);
@@ -79,6 +102,11 @@ Future<void> _showDurationPickerWithFlow({
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Text(
+                    input.label,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
                   SizedBox(
                     height: 200,
                     child: CupertinoTimerPicker(
@@ -97,10 +125,10 @@ Future<void> _showDurationPickerWithFlow({
                         onPressed: currentIndex > 0
                             ? () {
                                 Navigator.pop(context);
-                                _showDurationPickerWithFlow(
-                                  controllers: controllers,
-                                  currentIndex: currentIndex - 1,
-                                );
+                                final previous = inputs[currentIndex - 1];
+                                previous.isDuration
+                                    ? _showUnifiedPicker(inputs: inputs, currentIndex: currentIndex - 1)
+                                    : _showUnifiedTimePicker(inputs: inputs, currentIndex: currentIndex - 1);
                               }
                             : null,
                         child: const Text('Back'),
@@ -115,16 +143,14 @@ Future<void> _showDurationPickerWithFlow({
                         child: const Text('Done'),
                       ),
                       TextButton(
-                        onPressed: currentIndex < controllers.length - 1
+                        onPressed: currentIndex < inputs.length - 1
                             ? () {
                                 final h = selected.inHours;
                                 final m = selected.inMinutes % 60;
                                 controller.text = '${h}h${m}m';
                                 Navigator.pop(context);
-                                _showDurationPickerWithFlow(
-                                  controllers: controllers,
-                                  currentIndex: currentIndex + 1,
-                                );
+                                _navigateToInput(inputs, currentIndex + 1);
+
                               }
                             : null,
                         child: const Text('Next'),
@@ -141,13 +167,14 @@ Future<void> _showDurationPickerWithFlow({
   );
 }
 
-Future<void> _showTimePickerWithFlow({
-  required List<TextEditingController> controllers,
+Future<void> _showUnifiedTimePicker({
+  required List<SleepInputField> inputs,
   required int currentIndex,
 }) async {
-  final controller = controllers[currentIndex];
-  TimeOfDay initial = TimeOfDay.now();
+  final input = inputs[currentIndex];
+  final controller = input.controller;
 
+  TimeOfDay initial = TimeOfDay.now();
   try {
     final parsed = TimeOfDay(
       hour: int.parse(RegExp(r'(\d+):').firstMatch(controller.text)?.group(1) ?? '0'),
@@ -175,6 +202,11 @@ Future<void> _showTimePickerWithFlow({
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Text(
+                    input.label,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
                   SizedBox(
                     height: 200,
                     child: CupertinoDatePicker(
@@ -194,10 +226,10 @@ Future<void> _showTimePickerWithFlow({
                         onPressed: currentIndex > 0
                             ? () {
                                 Navigator.pop(context);
-                                _showTimePickerWithFlow(
-                                  controllers: controllers,
-                                  currentIndex: currentIndex - 1,
-                                );
+                                final previous = inputs[currentIndex - 1];
+                                previous.isDuration
+                                    ? _showUnifiedPicker(inputs: inputs, currentIndex: currentIndex - 1)
+                                    : _showUnifiedTimePicker(inputs: inputs, currentIndex: currentIndex - 1);
                               }
                             : null,
                         child: const Text('Back'),
@@ -211,15 +243,13 @@ Future<void> _showTimePickerWithFlow({
                         child: const Text('Done'),
                       ),
                       TextButton(
-                        onPressed: currentIndex < controllers.length - 1
+                        onPressed: currentIndex < inputs.length - 1
                             ? () {
                                 final formatted = DateFormat.jm().format(selected);
                                 controller.text = formatted;
                                 Navigator.pop(context);
-                                _showTimePickerWithFlow(
-                                  controllers: controllers,
-                                  currentIndex: currentIndex + 1,
-                                );
+                                _navigateToInput(inputs, currentIndex + 1);
+
                               }
                             : null,
                         child: const Text('Next'),
@@ -235,7 +265,6 @@ Future<void> _showTimePickerWithFlow({
     },
   );
 }
-
 
 int _parseToMinutes(String input) {
   final hours = RegExp(r'(\d+)h').firstMatch(input)?.group(1);
@@ -269,6 +298,7 @@ void _showAddSleepDialog() {
                 deepSleep: _deepController.text.trim(),
                 remSleep: _remController.text.trim(),
                 awakeTime: _awakeController.text.trim(),
+                timeInBed: _inBedController.text.trim(),
                 timeAsleep: _asleepController.text.trim(),
                 timeAwake: _wakeController.text.trim(),
                 quality: _qualityController.text.trim(),
@@ -283,6 +313,7 @@ void _showAddSleepDialog() {
               _wakeController.clear();
               _qualityController.clear();
               _notesController.clear();
+              _inBedController.clear();
 
               Navigator.of(context).pop();
               _loadSleepLogs();
@@ -301,66 +332,45 @@ void _showAddSleepDialog() {
 }
 
 Widget _buildSleepFormContent() {
-  final durationControllers = [
-    _durationController,
-    _deepController,
-    _remController,
-    _awakeController,
-  ];
-
-  final timeControllers = [
-    _asleepController,
-    _wakeController,
-  ];
+final inputs = [
+  SleepInputField(label: 'Total Duration', controller: _durationController, isDuration: true),
+  SleepInputField(label: 'Deep Sleep', controller: _deepController, isDuration: true),
+  SleepInputField(label: 'REM Sleep', controller: _remController, isDuration: true),
+  SleepInputField(label: 'Awake Time', controller: _awakeController, isDuration: true),
+  SleepInputField(label: 'Time Gotten in Bed', controller: _inBedController, isDuration: false),
+  SleepInputField(label: 'Time Asleep', controller: _asleepController, isDuration: false),
+  SleepInputField(label: 'Time Awake', controller: _wakeController, isDuration: false),
+];
 
   return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      ...List.generate(durationControllers.length, (index) {
-        final label = [
-          'Total Duration',
-          'Deep Sleep',
-          'REM Sleep',
-          'Awake Time'
-        ][index];
+...List.generate(inputs.length, (index) {
+  final input = inputs[index];
 
-        return GestureDetector(
-          onTap: () async {
-            await _showDurationPickerWithFlow(
-              controllers: durationControllers,
-              currentIndex: index,
-            );
-            setState(() {});
-          },
-          child: AbsorbPointer(
-            child: TextField(
-              controller: durationControllers[index],
-              decoration: InputDecoration(labelText: label),
-            ),
-          ),
+  return GestureDetector(
+    onTap: () async {
+      if (input.isDuration) {
+        await _showUnifiedPicker(
+          inputs: inputs,
+          currentIndex: index,
         );
-      }),
-
-      ...List.generate(timeControllers.length, (index) {
-        final label = ['Time Asleep', 'Time Awake'][index];
-        final controller = timeControllers[index];
-
-        return GestureDetector(
-          onTap: () async {
-            await _showTimePickerWithFlow(
-              controllers: timeControllers,
-              currentIndex: index,
-            );
-            setState(() {});
-          },
-          child: AbsorbPointer(
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(labelText: label),
-            ),
-          ),
+      } else {
+        await _showUnifiedTimePicker(
+          inputs: inputs,
+          currentIndex: index,
         );
-      }),
+      }
+      setState(() {});
+    },
+    child: AbsorbPointer(
+      child: TextField(
+        controller: input.controller,
+        decoration: InputDecoration(labelText: input.label),
+      ),
+    ),
+  );
+}),
 
       TextField(
         controller: _qualityController,
@@ -387,6 +397,7 @@ Future<void> _editSleepLog(
   String currentAwakeTime,
   String currentQuality,
   String? currentNotes,
+  String currentInBed,
 ) async {
   final TextEditingController editTotalController = TextEditingController(text: currentTotal);
   final TextEditingController editDeepController = TextEditingController(text: currentDeep);
@@ -394,21 +405,26 @@ Future<void> _editSleepLog(
   final TextEditingController editAwakeController = TextEditingController(text: currentAwake);
   final TextEditingController editLightController = TextEditingController(text: currentLight);
   final TextEditingController editScoreController = TextEditingController(text: currentScore.toString());
-  final TextEditingController editAsleepController = TextEditingController(text: currentAsleep);
-  final TextEditingController editAwakeTimeController = TextEditingController(text: currentAwakeTime);
   final TextEditingController editQualityController = TextEditingController(text: currentQuality);
   final TextEditingController editNotesController = TextEditingController(text: currentNotes ?? "");
 
-  final durationControllers = [
-    editTotalController,
-    editDeepController,
-    editRemController,
-    editAwakeController,
-  ];
+  final DateTime? parsedInBed = DateTime.tryParse(currentInBed);
+  final formattedInBed = parsedInBed != null
+      ? DateFormat.jm().format(parsedInBed)
+      : currentInBed;
+  final TextEditingController editInBedController = TextEditingController(text: formattedInBed);
 
-  final timeControllers = [
-    editAsleepController,
-    editAwakeTimeController,
+  final TextEditingController editAsleepController = TextEditingController(text: currentAsleep);
+  final TextEditingController editAwakeTimeController = TextEditingController(text: currentAwakeTime);
+
+  final inputs = [
+    SleepInputField(label: 'Total Duration', controller: editTotalController, isDuration: true),
+    SleepInputField(label: 'Deep Sleep', controller: editDeepController, isDuration: true),
+    SleepInputField(label: 'REM Sleep', controller: editRemController, isDuration: true),
+    SleepInputField(label: 'Awake Time', controller: editAwakeController, isDuration: true),
+    SleepInputField(label: 'Time Gotten in Bed', controller: editInBedController, isDuration: false),
+    SleepInputField(label: 'Time Asleep', controller: editAsleepController, isDuration: false),
+    SleepInputField(label: 'Time Awake', controller: editAwakeTimeController, isDuration: false),
   ];
 
   showDialog(
@@ -419,27 +435,25 @@ Future<void> _editSleepLog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ...List.generate(durationControllers.length, (index) {
-              final label = ['Total Duration', 'Deep Sleep', 'REM Sleep', 'Awake Time'][index];
-              final controller = durationControllers[index];
-
+            ...List.generate(inputs.length, (index) {
+              final input = inputs[index];
               return GestureDetector(
                 onTap: () async {
-                  await _showDurationPickerWithFlow(
-                    controllers: durationControllers,
-                    currentIndex: index,
-                  );
+                  if (input.isDuration) {
+                    await _showUnifiedPicker(inputs: inputs, currentIndex: index);
+                  } else {
+                    await _showUnifiedTimePicker(inputs: inputs, currentIndex: index);
+                  }
                   setState(() {});
                 },
                 child: AbsorbPointer(
                   child: TextField(
-                    controller: controller,
-                    decoration: InputDecoration(labelText: label),
+                    controller: input.controller,
+                    decoration: InputDecoration(labelText: input.label),
                   ),
                 ),
               );
             }),
-
             TextField(
               controller: editLightController,
               decoration: const InputDecoration(labelText: 'Light Sleep'),
@@ -449,28 +463,6 @@ Future<void> _editSleepLog(
               decoration: const InputDecoration(labelText: 'Sleep Score (0–100)'),
               keyboardType: TextInputType.number,
             ),
-
-            ...List.generate(timeControllers.length, (index) {
-              final label = ['Time Asleep', 'Time Awake'][index];
-              final controller = timeControllers[index];
-
-              return GestureDetector(
-                onTap: () async {
-                  await _showTimePickerWithFlow(
-                    controllers: timeControllers,
-                    currentIndex: index,
-                  );
-                  setState(() {});
-                },
-                child: AbsorbPointer(
-                  child: TextField(
-                    controller: controller,
-                    decoration: InputDecoration(labelText: label),
-                  ),
-                ),
-              );
-            }),
-
             TextField(
               controller: editQualityController,
               decoration: const InputDecoration(labelText: 'Quality'),
@@ -519,7 +511,6 @@ Future<void> _editSleepLog(
   );
 }
 
-
   Future<void> _deleteSleepLog(String docId) async {
     await _firestoreService.deleteSleepLog(docId);
     _loadSleepLogs();
@@ -559,7 +550,7 @@ Future<void> _editSleepLog(
                 return Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    children: logs.map((log) {
+                    children: logs.map<Widget>((log) {
                       final data = log.data() as Map<String, dynamic>;
                       final timestamp = data['timestamp'] as Timestamp?;
                       final formattedDate = timestamp != null ? DateFormat.yMMMd().format(timestamp.toDate()) : 'No Date';
@@ -567,6 +558,7 @@ Future<void> _editSleepLog(
                       return SleepEntryCard(
                         duration: data['totalDuration'] ?? 'Unknown',
                         quality: data['quality'] ?? 'Unknown',
+                        timeToFallAsleep: '${data['timeToFallAsleep'] ?? '—'}',
                         date: formattedDate,
                         onEdit: () => _editSleepLog(
                           log.id,
@@ -580,6 +572,7 @@ Future<void> _editSleepLog(
                           data['timeAwake'] ?? '',
                           data['quality'] ?? '',
                           data['notes'] ?? '',
+                          data['timeInBed'] ?? '',
                         ),
                         onDelete: () => _deleteSleepLog(log.id),
                       );

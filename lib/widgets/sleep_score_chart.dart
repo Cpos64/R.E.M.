@@ -25,7 +25,7 @@ class SleepScoreChart extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 24.0),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: 420),
+        constraints: const BoxConstraints(maxHeight: 420),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -47,7 +47,7 @@ class SleepScoreChart extends StatelessWidget {
                           showTitles: true,
                           interval: 20,
                           reservedSize: 40,
-                          getTitlesWidget: (value, meta) => Text(
+                          getTitlesWidget: (value, _) => Text(
                             value.toInt().toString(),
                             style: const TextStyle(fontSize: 10),
                           ),
@@ -57,7 +57,7 @@ class SleepScoreChart extends StatelessWidget {
                         sideTitles: SideTitles(
                           showTitles: true,
                           interval: 1,
-                          getTitlesWidget: (value, meta) {
+                          getTitlesWidget: (value, _) {
                             int index = value.toInt();
                             if (index < 0 || index >= sleepData.length) return const SizedBox();
                             final date = sleepData[index]['date'] as DateTime;
@@ -77,11 +77,11 @@ class SleepScoreChart extends StatelessWidget {
                       drawHorizontalLine: true,
                       horizontalInterval: 20,
                       verticalInterval: 1.0,
-                      getDrawingHorizontalLine: (value) => FlLine(
+                      getDrawingHorizontalLine: (_) => FlLine(
                         color: Colors.white24,
                         strokeWidth: 0.5,
                       ),
-                      getDrawingVerticalLine: (value) => FlLine(
+                      getDrawingVerticalLine: (_) => FlLine(
                         color: Colors.white24,
                         strokeWidth: 0.5,
                       ),
@@ -99,22 +99,19 @@ class SleepScoreChart extends StatelessWidget {
                         }).toList();
                       },
                       touchTooltipData: LineTouchTooltipData(
-                        tooltipBgColor: Colors.blueAccent,
-                        tooltipRoundedRadius: 8,
-                        fitInsideHorizontally: true,
-                        fitInsideVertically: true,
                         getTooltipItems: (touchedSpots) {
-                          if (touchedSpots.isEmpty) return [];
-                          final index = touchedSpots.first.x.toInt();
-                          final date = sleepData[index]['date'] as DateTime;
-                          final score = sleepData[index]['sleepScore'];
-                          return [
-                            LineTooltipItem(
-                              '${DateFormat('E').format(date)}\nScore: $score',
-                              const TextStyle(color: Colors.white, fontSize: 12),
-                            ),
-                          ];
-                        },
+  if (touchedSpots.isEmpty) return [];
+  final index = touchedSpots.first.x.toInt();
+  final date = sleepData[index]['date'] as DateTime;
+  final score = sleepData[index]['sleepScore'];
+  return [
+    LineTooltipItem(
+      '${DateFormat('E').format(date)}\nScore: $score',
+      const TextStyle(color: Colors.white, fontSize: 12),
+    ),
+  ];
+}
+
                       ),
                     ),
                     lineBarsData: [
