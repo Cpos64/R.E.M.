@@ -117,76 +117,103 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
             children: [
               Column(
                 children: [
-                  SizedBox(
-                    height: chartHeight,
-                    child: BarChart(
-                      BarChartData(
-                        maxY: _calculateMaxY(),
-                        barGroups: barGroups,
-                        alignment: BarChartAlignment.spaceAround,
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 60,
-                              reservedSize: 42,
-                              getTitlesWidget: (value, _) {
-                                final h = value ~/ 60;
-                                final m = value % 60;
-                                return Text(
-                                  m == 0 ? '${h}h' : '${h}h${m}m',
-                                  style: const TextStyle(fontSize: 10),
-                                );
-                              },
-                            ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, _) {
-                                int i = value.toInt();
-                                if (i < 0 || i >= past7Days.length) return const SizedBox();
-                                return Text(
-                                  DateFormat('E').format(past7Days[i]),
-                                  style: const TextStyle(fontSize: 10),
-                                );
-                              },
-                            ),
-                          ),
-                          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        gridData: FlGridData(
-                          show: true,
-                          horizontalInterval: 60,
-                          getDrawingHorizontalLine: (_) => FlLine(color: Colors.white24, strokeWidth: 0.5),
-                        ),
-                        borderData: FlBorderData(show: false),
-barTouchData: BarTouchData(
-  enabled: true,
-  touchCallback: (event, response) {
-    if (!event.isInterestedForInteractions || response == null || response.spot == null) {
-      setState(() {
-        touchedIndex = null;
-        touchPosition = null;
-      });
-      return;
-    }
+SizedBox(
+  height: chartHeight,
+  child: TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0.0, end: 1.0),
+    duration: const Duration(milliseconds: 1000),
+    builder: (context, animationValue, child) {
+      List<BarChartGroupData> animatedBarGroups = [];
+      for (int i = 0; i < barGroups.length; i++) {
+        final original = barGroups[i];
+        final rods = original.barRods.map((rod) {
+          return BarChartRodData(
+            toY: rod.toY * animationValue,
+            rodStackItems: rod.rodStackItems.map((stackItem) {
+              final height = stackItem.toY - stackItem.fromY;
+              return BarChartRodStackItem(
+                stackItem.fromY * animationValue,
+                (stackItem.fromY + height * animationValue),
+                stackItem.color,
+              );
+            }).toList(),
+            width: rod.width,
+            borderRadius: rod.borderRadius,
+          );
+        }).toList();
+        animatedBarGroups.add(BarChartGroupData(x: original.x, barRods: rods));
+      }
 
-    final spot = response.spot!;
-    setState(() {
-      touchedIndex = spot.touchedBarGroupIndex;
-      touchPosition = spot.offset;
-    });
-  },
-  touchTooltipData: BarTouchTooltipData(
-    getTooltipItem: (_, __, ___, ____) => null, // 👈 disables the default tooltip
+      return BarChart(
+        BarChartData(
+          maxY: _calculateMaxY(),
+          barGroups: animatedBarGroups,
+          alignment: BarChartAlignment.spaceAround,
+          // ⬇️ your existing titles, grid, touch callbacks, etc:
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 60,
+                reservedSize: 42,
+                getTitlesWidget: (value, _) {
+                  final h = value ~/ 60;
+                  final m = value % 60;
+                  return Text(
+                    m == 0 ? '${h}h' : '${h}h${m}m',
+                    style: const TextStyle(fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, _) {
+                  int i = value.toInt();
+                  if (i < 0 || i >= past7Days.length) return const SizedBox();
+                  return Text(
+                    DateFormat('E').format(past7Days[i]),
+                    style: const TextStyle(fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(
+            show: true,
+            horizontalInterval: 60,
+            getDrawingHorizontalLine: (_) => FlLine(color: Colors.white24, strokeWidth: 0.5),
+          ),
+          borderData: FlBorderData(show: false),
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchCallback: (event, response) {
+              if (!event.isInterestedForInteractions || response == null || response.spot == null) {
+                setState(() {
+                  touchedIndex = null;
+                  touchPosition = null;
+                });
+                return;
+              }
+
+              final spot = response.spot!;
+              setState(() {
+                touchedIndex = spot.touchedBarGroupIndex;
+                touchPosition = spot.offset;
+              });
+            },
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (_, __, ___, ____) => null,
+            ),
+          ),
+        ),
+      );
+    },
   ),
 ),
-
-                      ),
-                    ),
-                  ),
                   SizedBox(
                     height: legendHeight,
                     child: Center(
