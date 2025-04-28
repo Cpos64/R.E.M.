@@ -42,6 +42,9 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   final _wakeController = TextEditingController();
   final _qualityController = TextEditingController();
   final _notesController = TextEditingController();
+  final _dateController     = TextEditingController(
+    text: DateFormat.yMd().format(DateTime.now()),
+);
   final _inBedController = TextEditingController();
 
 
@@ -275,52 +278,58 @@ int _parseToMinutes(String input) {
 void _showAddSleepDialog() {
   showDialog(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text('Add Sleep Log'),
       content: SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 400),
+          constraints: const BoxConstraints(maxWidth: 400),
           child: _buildSleepFormContent(),
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
           onPressed: () async {
             HapticFeedback.mediumImpact();
             try {
+              // parse the selected date
+              final parsedDate = DateFormat.yMd().parse(_dateController.text.trim());
+
               await _firestoreService.saveSleepLogAuto(
                 totalDuration: _durationController.text.trim(),
-                deepSleep: _deepController.text.trim(),
-                remSleep: _remController.text.trim(),
-                awakeTime: _awakeController.text.trim(),
-                timeInBed: _inBedController.text.trim(),
-                timeAsleep: _asleepController.text.trim(),
-                timeAwake: _wakeController.text.trim(),
-                quality: _qualityController.text.trim(),
-                notes: _notesController.text.trim(),
+                deepSleep:     _deepController.text.trim(),
+                remSleep:      _remController.text.trim(),
+                awakeTime:     _awakeController.text.trim(),
+                timeInBed:     _inBedController.text.trim(),
+                timeAsleep:    _asleepController.text.trim(),
+                timeAwake:     _wakeController.text.trim(),
+                quality:       _qualityController.text.trim(),
+                notes:         _notesController.text.trim(),
+                date:          parsedDate,            // <-- new!
               );
 
+              // clear everything
+              _dateController.text     = DateFormat.yMd().format(DateTime.now());
               _durationController.clear();
               _deepController.clear();
               _remController.clear();
               _awakeController.clear();
+              _inBedController.clear();
               _asleepController.clear();
               _wakeController.clear();
               _qualityController.clear();
               _notesController.clear();
-              _inBedController.clear();
 
-              Navigator.of(context).pop();
+              Navigator.of(ctx).pop();
               _loadSleepLogs();
               _loadChartData();
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error saving sleep log')),
+                SnackBar(content: Text('Error saving sleep log: \$e')),
               );
             }
           },
@@ -332,50 +341,67 @@ void _showAddSleepDialog() {
 }
 
 Widget _buildSleepFormContent() {
-final inputs = [
-  SleepInputField(label: 'Total Duration', controller: _durationController, isDuration: true),
-  SleepInputField(label: 'Deep Sleep', controller: _deepController, isDuration: true),
-  SleepInputField(label: 'REM Sleep', controller: _remController, isDuration: true),
-  SleepInputField(label: 'Awake Time', controller: _awakeController, isDuration: true),
-  SleepInputField(label: 'Time Gotten in Bed', controller: _inBedController, isDuration: false),
-  SleepInputField(label: 'Time Asleep', controller: _asleepController, isDuration: false),
-  SleepInputField(label: 'Time Awake', controller: _wakeController, isDuration: false),
-];
+  // your existing duration/time fields
+  final inputs = <SleepInputField>[
+    SleepInputField(label: 'Total Duration',   controller: _durationController, isDuration: true),
+    SleepInputField(label: 'Deep Sleep',       controller: _deepController,     isDuration: true),
+    SleepInputField(label: 'REM Sleep',        controller: _remController,      isDuration: true),
+    SleepInputField(label: 'Awake Time',       controller: _awakeController,    isDuration: true),
+    SleepInputField(label: 'Time Gotten in Bed', controller: _inBedController, isDuration: false),
+    SleepInputField(label: 'Time Asleep',      controller: _asleepController,   isDuration: false),
+    SleepInputField(label: 'Time Awake',       controller: _wakeController,     isDuration: false),
+  ];
 
   return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-...List.generate(inputs.length, (index) {
-  final input = inputs[index];
-
-  return GestureDetector(
-    onTap: () async {
-      if (input.isDuration) {
-        await _showUnifiedPicker(
-          inputs: inputs,
-          currentIndex: index,
-        );
-      } else {
-        await _showUnifiedTimePicker(
-          inputs: inputs,
-          currentIndex: index,
-        );
-      }
-      setState(() {});
-    },
-    child: AbsorbPointer(
-      child: TextField(
-        controller: input.controller,
-        decoration: InputDecoration(labelText: input.label),
+      // ─── Date picker ───
+      GestureDetector(
+        onTap: () async {
+          final initial = DateFormat.yMd().parse(_dateController.text);
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: initial,
+            firstDate: DateTime(2000),
+            lastDate: DateTime.now(),
+          );
+          if (picked != null) {
+            _dateController.text = DateFormat.yMd().format(picked);
+            setState(() {});  // redraw label
+          }
+        },
+        child: AbsorbPointer(
+          child: TextField(
+            controller: _dateController,
+            decoration: const InputDecoration(labelText: 'Date'),
+          ),
+        ),
       ),
-    ),
-  );
-}),
+      const SizedBox(height: 16),
 
+      // ─── durations & times ───
+      ...List.generate(inputs.length, (i) {
+        final f = inputs[i];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: GestureDetector(
+            onTap: () => _navigateToInput(inputs, i),
+            child: AbsorbPointer(
+              child: TextField(
+                controller: f.controller,
+                decoration: InputDecoration(labelText: f.label),
+              ),
+            ),
+          ),
+        );
+      }),
+
+      // ─── quality & notes ───
       TextField(
         controller: _qualityController,
         decoration: const InputDecoration(labelText: 'Quality'),
       ),
+      const SizedBox(height: 8),
       TextField(
         controller: _notesController,
         decoration: const InputDecoration(labelText: 'Notes'),
@@ -384,6 +410,7 @@ final inputs = [
     ],
   );
 }
+
 
 Future<void> _editSleepLog(
   String docId,
@@ -516,75 +543,79 @@ Future<void> _editSleepLog(
     _loadSleepLogs();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sleep Log')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSleepDialog,
-        child: const Icon(Icons.add),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (sleepChartData.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: SleepChartPager(sleepData: sleepChartData),
-              ),
-            FutureBuilder<List<QueryDocumentSnapshot>>(
-              future: _sleepLogsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: \${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No sleep logs saved yet.'));
-                }
+ @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(title: const Text('Sleep Log')),
+    floatingActionButton: FloatingActionButton(
+      onPressed: _showAddSleepDialog,
+      child: const Icon(Icons.add),
+    ),
+    body: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ───────── Chart Pager ─────────
+        if (sleepChartData.isNotEmpty)
+          SizedBox(
+            height: 400,
+            child: SleepChartPager(sleepData: sleepChartData),
+          ),
 
-                final logs = snapshot.data!;
-                return Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: logs.map<Widget>((log) {
-                      final data = log.data() as Map<String, dynamic>;
-                      final timestamp = data['timestamp'] as Timestamp?;
-                      final formattedDate = timestamp != null ? DateFormat.yMMMd().format(timestamp.toDate()) : 'No Date';
+        // ───────── Logs List ─────────
+        Expanded(
+          child: FutureBuilder<List<QueryDocumentSnapshot>>(
+            future: _sleepLogsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
 
-                      return SleepEntryCard(
-                        duration: data['totalDuration'] ?? 'Unknown',
-                        quality: data['quality'] ?? 'Unknown',
-                        timeToFallAsleep: '${data['timeToFallAsleep'] ?? '—'}',
-                        date: formattedDate,
-                        onEdit: () => _editSleepLog(
-                          log.id,
-                          data['totalDuration'] ?? '',
-                          data['deepSleep'] ?? '',
-                          data['remSleep'] ?? '',
-                          data['awakeTime'] ?? '',
-                          data['lightSleep'] ?? '',
-                          (data['sleepScore'] as num?)?.toInt() ?? 0,
-                          data['timeAsleep'] ?? '',
-                          data['timeAwake'] ?? '',
-                          data['quality'] ?? '',
-                          data['notes'] ?? '',
-                          data['timeInBed'] ?? '',
-                        ),
-                        onDelete: () => _deleteSleepLog(log.id),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-          ],
+              final logs = snapshot.data;
+              if (logs == null || logs.isEmpty) {
+                return const Center(child: Text('No sleep logs saved yet.'));
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: logs.length,
+                itemBuilder: (ctx, i) {
+                  final doc = logs[i];
+                  final d   = doc.data() as Map<String, dynamic>;
+                  final ts  = d['timestamp'] as Timestamp?;
+                  final date = ts != null
+                      ? DateFormat.yMMMd().format(ts.toDate())
+                      : 'No Date';
+
+                  return SleepEntryCard(
+                    duration:        d['totalDuration']  ?? 'Unknown',
+                    quality:         d['quality']        ?? 'Unknown',
+                    timeToFallAsleep:d['timeToFallAsleep'] ?? '—',
+                    date:            date,
+                    onEdit: () => _editSleepLog(
+                      doc.id,
+                      d['totalDuration']  ?? '',
+                      d['deepSleep']      ?? '',
+                      d['remSleep']       ?? '',
+                      d['awakeTime']      ?? '',
+                      d['lightSleep']     ?? '',
+                      (d['sleepScore'] as num?)?.toInt() ?? 0,
+                      d['timeAsleep']     ?? '',
+                      d['timeAwake']      ?? '',
+                      d['quality']        ?? '',
+                      d['notes']          ?? '',
+                      d['timeInBed']      ?? '',
+                    ),
+                    onDelete: () => _deleteSleepLog(doc.id),
+                  );
+                },
+              );
+            },
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
-    
+}

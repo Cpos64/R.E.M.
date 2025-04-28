@@ -91,6 +91,7 @@ class FirestoreService {
     required String timeAwake,
     required String quality,
     String? notes,
+    required DateTime date,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -106,7 +107,7 @@ class FirestoreService {
       "timeAwake": timeAwake,
       "quality": quality,
       "notes": notes ?? "",
-      "timestamp": Timestamp.now(),
+      "timestamp": Timestamp.fromDate(date),
       "userId": user.uid,
     };
 
@@ -126,6 +127,7 @@ Future<void> saveSleepLogAuto({
   required String timeAwake,
   required String quality,
   String? notes,
+  required DateTime date,
 }) async {
   final user = _auth.currentUser;
   if (user == null) return;
@@ -188,7 +190,7 @@ final timeToFallAsleepISO = timeToFallAsleep.toString(); // e.g., "0:15:00.00000
     "timeToFallAsleepISO": timeToFallAsleepISO,
     "quality": quality,
     "notes": notes ?? "",
-    "timestamp": Timestamp.now(),
+    "timestamp": Timestamp.fromDate(date),
     "userId": user.uid,
   };
 
