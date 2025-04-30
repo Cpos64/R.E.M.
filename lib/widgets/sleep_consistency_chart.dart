@@ -9,6 +9,7 @@ class SleepConsistencyChart extends StatelessWidget {
     Key? key,
     required this.sleepData,
   }) : super(key: key);
+  
 
 /// Parse either an ISO timestamp or a "h:mm a" string into a decimal hour.
 double _parseTime(String? text) {
@@ -43,6 +44,14 @@ for (var e in sleepData) {
 }
 final avgBed  = sumBed  / sleepData.length;
 final avgWake = sumWake / sleepData.length;
+   // turn avgWake (e.g. 5.3666) into a "5:22 AM" style string:
+   String _formatDecimalHour(double v) {
+     final h = v.floor();
+     final m = ((v - h)*60).round();
+     final dt = DateTime(0, 0, 0, h, m);
+     return DateFormat.jm().format(dt);
+   }
+   final avgWakeStr = _formatDecimalHour(avgWake);
 
 // 2. Build a 7-day window ending today:
 final today = DateTime.now();
@@ -130,62 +139,70 @@ for (var i = 0; i < last7.length; i++) {
         // The BarChart itself fills the remaining height from the pager's SizedBox( height:380 )
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(left: 16.0),
+            padding: const EdgeInsets.only(left: 40.0),
           child: BarChart(
 BarChartData(
-  barTouchData: BarTouchData(
-    enabled: true,
-    touchTooltipData: BarTouchTooltipData(
-      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-        // lookup the date and entry for this group
-        final date = last7[group.x.toInt()];
-        final entry = sleepData.firstWhere(
-          (e) {
-            final dt = e['date'] as DateTime;
-            return dt.year == date.year &&
-                   dt.month == date.month &&
-                   dt.day == date.day;
-          },
-          orElse: () => <String, dynamic>{},
-        );
-    
-// ── Bedtime label ──
-  String bedLabel;
-  final rawBed = entry['timeInBed'] as String?;
-  if (rawBed == null || rawBed.isEmpty) {
-    bedLabel = '—';
-  } else {
-    // try ISO-8601 first
-    final iso = DateTime.tryParse(rawBed);
-    if (iso != null) {
-      bedLabel = DateFormat.jm().format(iso);
-    } else {
-      // fallback to parsing "9:30 PM"
-      try {
-        final dt = DateFormat.jm().parse(rawBed);
-        bedLabel = DateFormat.jm().format(dt);
-      } catch (_) {
-        bedLabel = rawBed;
+barTouchData: BarTouchData(
+  enabled: true,
+  touchTooltipData: BarTouchTooltipData(
+      fitInsideHorizontally: true,
+      fitInsideVertically: true,
+    tooltipPadding: const EdgeInsets.all(6),
+    tooltipMargin: 4,
+    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+      // 1) Figure out which day this is
+      final date = last7[group.x.toInt()];
+
+      // 2) Find the matching sleep-entry for that day
+      final entry = sleepData.firstWhere(
+        (e) {
+          final dt = e['date'] as DateTime;
+          return dt.year == date.year
+              && dt.month == date.month
+              && dt.day == date.day;
+        },
+        orElse: () => <String, dynamic>{},
+      );
+
+      // 3) A little helper to normalize any ISO or "h:mm a" string
+      String fmtTime(String? raw) {
+        if (raw == null || raw.isEmpty) return '—';
+        final iso = DateTime.tryParse(raw);
+        if (iso != null) return DateFormat.jm().format(iso);
+        try {
+          return DateFormat.jm().format(DateFormat.jm().parse(raw));
+        } catch (_) {
+          return raw;
+        }
       }
-    }
-  }
 
-  // ── Asleep & wake labels ──
-  // these can stay as simple fallbacks:
-  String asleepLabel = entry['timeAsleep'] as String? ?? '—';
-  String wakeLabel   = entry['timeAwake'] as String? ?? '—';
+      // 4) Grab each of the three times
+      final bed    = fmtTime(entry['timeInBed']  as String?);
+      final asleep = fmtTime(entry['timeAsleep'] as String?);
+      final wake   = fmtTime(entry['timeAwake']  as String?);
 
-  // ── Build the tooltip ──
-  return BarTooltipItem(
-    '${DateFormat.yMMMd().format(date)}\n'
-    'Bed: $bedLabel\n'
-    'Asleep: $asleepLabel\n'
-    'Wake: $wakeLabel',
-    const TextStyle(fontSize: 12, color: Colors.white),
-  );
-},
-    ),
+      // 5) Now branch on rodIndex:
+      // rodIndex == 0 → the “In Bed → Asleep” segment
+      // rodIndex == 1 → the “Asleep → Wake” segment
+      if (rodIndex == 0) {
+        return BarTooltipItem(
+          '${DateFormat.yMMMd().format(date)}\n'
+          'Bed: $bed\n'
+          'Asleep: $asleep',
+          const TextStyle(color: Colors.white, fontSize: 12),
+        );
+      } else {
+        return BarTooltipItem(
+          '${DateFormat.yMMMd().format(date)}\n'
+          'Asleep: $asleep\n'
+          'Wake: $wake',
+          const TextStyle(color: Colors.white, fontSize: 12),
+        );
+      }
+    },
   ),
+),
+
 
               alignment: BarChartAlignment.spaceAround,
               groupsSpace: 4,
@@ -209,7 +226,7 @@ titlesData: FlTitlesData(
     sideTitles: SideTitles(
       showTitles: true,
       interval: 6,      // only every 6 hours
-      reservedSize: 60, // more room for the text
+      reservedSize: 80, // more room for the text
       getTitlesWidget: (val, meta) {
         // 1) Build the label widget
         Widget label;
@@ -269,7 +286,7 @@ titlesData: FlTitlesData(
                   label: HorizontalLineLabel(
                     show: true,
                     alignment: Alignment.bottomLeft,
-                    labelResolver: (_) => 'Avg Wake',
+                    labelResolver: (_) => '$avgWakeStr',
                     style: const TextStyle(color: Colors.white70, fontSize: 10),
                   ),
                 ),
