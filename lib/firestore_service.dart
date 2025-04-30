@@ -74,6 +74,7 @@ class FirestoreService {
         'lightSleep': data['lightSleep'] ?? 0,
         'awakeTime': data['awakeTime'] ?? 0,
         'sleepScore': data['sleepScore'] ?? 0,
+        'timeInBed': data['timeInBed'] ?? '',
         'timeAsleep': data['timeAsleep'] ?? '',
         'timeAwake': data['timeAwake'] ?? '',
       };

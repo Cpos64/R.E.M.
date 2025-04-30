@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'sleep_score_chart.dart';
 import 'sleep_stage_bar_chart.dart';
-import 'sleep_consistency_chart.dart';
+import 'sleep_consistency_stream.dart';
 
 class SleepChartPager extends StatefulWidget {
   final List<Map<String, dynamic>> sleepData;
@@ -48,7 +48,7 @@ class _SleepChartPagerState extends State<SleepChartPager> {
               // Chart #3: Sleep Consistency (boxed to 380px so it can't overflow)
               SizedBox(
                 height: 380,
-                child: SleepConsistencyChart(sleepData: widget.sleepData),
+                child: const SleepConsistencyStream(),
               ),
             ],
           ),
