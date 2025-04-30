@@ -37,21 +37,37 @@ double _parseTime(String? text) {
 // 1. Compute averages exactly as before, from only the actual entries:
 double sumBed = 0, sumWake = 0;
 for (var e in sleepData) {
-  final bedRel  = _parseTime(e['timeInBed']  as String?) - 24;
+ final rawBed = _parseTime(e['timeInBed'] as String?);
+  // only subtract 24 if it actually came in as >12 (i.e. an evening time)
+  final bedRel = rawBed > 12 ? rawBed - 24 : rawBed;
+
   final wakeRel = _parseTime(e['timeAwake'] as String?);
   sumBed  += bedRel;
   sumWake += wakeRel;
 }
 final avgBed  = sumBed  / sleepData.length;
 final avgWake = sumWake / sleepData.length;
-   // turn avgWake (e.g. 5.3666) into a "5:22 AM" style string:
-   String _formatDecimalHour(double v) {
-     final h = v.floor();
-     final m = ((v - h)*60).round();
-     final dt = DateTime(0, 0, 0, h, m);
-     return DateFormat.jm().format(dt);
-   }
-   final avgWakeStr = _formatDecimalHour(avgWake);
+
+   // ── 1) Right after you compute avgBed & avgWake ──
+double sumAsleep = 0;
+for (var e in sleepData) {
+  // parse exactly as you do for each day, subtracting 24h if needed
+  final raw = _parseTime(e['timeAsleep'] as String?);
+  final rel = raw > 12 ? raw - 24 : raw;
+  sumAsleep += rel;
+}
+final avgAsleep = sumAsleep / sleepData.length;
+
+// helper to show hh:mm AM/PM everywhere
+String _fmt(double v) {
+  final h = v.floor();
+  final m = ((v - h) * 60).round();
+  return DateFormat.jm().format(DateTime(0, 0, 0, h, m));
+}
+final avgBedStr    = _fmt(avgBed);
+final avgAsleepStr = _fmt(avgAsleep);
+final avgWakeStr   = _fmt(avgWake);
+
 
 // 2. Build a 7-day window ending today:
 final today = DateTime.now();
@@ -124,6 +140,7 @@ for (var i = 0; i < last7.length; i++) {
         ));
       }
 }
+
 
   
     return Column(
@@ -204,6 +221,7 @@ barTouchData: BarTouchData(
 ),
 
 
+
               alignment: BarChartAlignment.spaceAround,
               groupsSpace: 4,
               minY: -6,   // 18:00 → -6.0
@@ -265,38 +283,72 @@ titlesData: FlTitlesData(
                 rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
               ),
 
-              extraLinesData: ExtraLinesData(horizontalLines: [
-                HorizontalLine(
-                  y: avgBed,
-                  color: Colors.white,
-                  strokeWidth: 1,
-                  dashArray: null, // solid
-                  label: HorizontalLineLabel(
-                    show: true,
-                    alignment: Alignment.topLeft,
-                    labelResolver: (_) => 'Avg Bedtime',
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
-                ),
-                HorizontalLine(
-                  y: avgWake,
-                  color: Colors.white,
-                  strokeWidth: 1,
-                  dashArray: [4, 4], // dashed
-                  label: HorizontalLineLabel(
-                    show: true,
-                    alignment: Alignment.bottomLeft,
-                    labelResolver: (_) => '$avgWakeStr',
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
-                ),
-              ]),
+              // 2.a) The translucent “zone” for bed→asleep
+   rangeAnnotations: RangeAnnotations(
+     horizontalRangeAnnotations: [
+       HorizontalRangeAnnotation(
+         y1: avgBed,
+         y2: avgAsleep,
+         color: Theme.of(context)
+             .colorScheme
+             .primary
+             .withOpacity(0.15),
+       ),
+     ],
+   ),
+
+  extraLinesData: ExtraLinesData(
+    horizontalLines: [
+      // // 1) Avg In-Bed (solid)
+      HorizontalLine(
+        y: avgBed,
+        color: Colors.white,
+        strokeWidth: 1,
+        label: HorizontalLineLabel(
+          show: true,
+          alignment: Alignment.bottomLeft,
+          labelResolver: (_) => '$avgBedStr',
+          style: const TextStyle(color: Colors.white70, fontSize: 10),
+        ),
+      ),
+
+      // 2) Avg Asleep (solid)
+      HorizontalLine(
+        y: avgAsleep,
+        color: Colors.white,
+        strokeWidth: 1,
+        label: HorizontalLineLabel(
+          show: true,
+          alignment: Alignment.topLeft,
+          labelResolver: (_) => '$avgAsleepStr',
+          style: const TextStyle(color: Colors.white70, fontSize: 10),
+        ),
+      ),
+
+
+      // 3) Avg Wake (dashed)
+      HorizontalLine(
+        y: avgWake,
+        color: Colors.white,
+        strokeWidth: 1,
+        dashArray: [4, 4],
+        label: HorizontalLineLabel(
+          show: true,
+          alignment: Alignment.bottomLeft,
+          labelResolver: (_) => '$avgWakeStr',
+          style: const TextStyle(color: Colors.white70, fontSize: 10),
+        ),
+      ),
+    ],
+  ),
+
 
               borderData: FlBorderData(show: true),
             ),
           ),
         ), 
         ),
+    
 
 
         const SizedBox(height: 8),
