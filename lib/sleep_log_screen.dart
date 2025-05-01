@@ -555,11 +555,28 @@ Widget build(BuildContext context) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ───────── Chart Pager ─────────
-        if (sleepChartData.isNotEmpty)
-          SizedBox(
-            height: 400,
-            child: SleepChartPager(sleepData: sleepChartData),
-          ),
+StreamBuilder<List<Map<String, dynamic>>>(
+  stream: _firestoreService.watchLast7SleepLogsForChart(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const SizedBox(
+        height: 400,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final data = snapshot.data ?? [];
+    if (data.isEmpty) {
+      return const SizedBox(
+        height: 400,
+        child: Center(child: Text('No sleep data yet.')),
+      );
+    }
+    return SizedBox(
+      height: 400,
+      child: SleepChartPager(sleepData: data),
+    );
+  },
+),
 
         // ───────── Logs List ─────────
         Expanded(

@@ -32,10 +32,15 @@ class SleepScoreChart extends StatelessWidget {
     }
 
     // 3) Build spots
-    final spots = List<FlSpot>.generate(7, (i) {
-      final v = scores[i];
-      return FlSpot(i.toDouble(), v ?? double.nan);
-    });
+// 3a) create the raw 7-day spots (NaN for missing)
+final rawSpots = List<FlSpot>.generate(7, (i) {
+  final v = scores[i];
+  return FlSpot(i.toDouble(), v ?? double.nan);
+});
+
+// 3b) filter out NaNs for the *drawing* logic
+final drawnSpots = rawSpots.where((s) => !s.y.isNaN).toList();
+
 
     // 4) Compute stats
     final valid = scores.where((s) => s != null).cast<double>().toList();
@@ -193,7 +198,7 @@ class SleepScoreChart extends StatelessWidget {
 
                 lineBarsData: [
                   LineChartBarData(
-                    spots: spots,
+                    spots: drawnSpots,
                     isCurved: true,
                     color: Theme.of(context).colorScheme.primary,
                     barWidth: 3,
