@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 class SleepStageBarChart extends StatefulWidget {
   final List<Map<String, dynamic>> sleepData;
-
   const SleepStageBarChart({Key? key, required this.sleepData}) : super(key: key);
 
   @override
@@ -14,6 +13,7 @@ class SleepStageBarChart extends StatefulWidget {
 class _SleepStageBarChartState extends State<SleepStageBarChart> {
   int? touchedIndex;
   Offset? touchPosition;
+  String? _touchedSegment; // 'dr' or 'la'
 
   double _parseToMinutes(dynamic duration) {
     if (duration == null) return 0.0;
@@ -29,41 +29,43 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
     return h > 0 ? '${h}h${m}m' : '${m}m';
   }
 
-  String _buildTooltipText(int index) {
-    final now = DateTime.now();
-    final date = DateTime(now.year, now.month, now.day - (6 - index));
-    final key = DateFormat('yyyy-MM-dd').format(date);
-    final entry = widget.sleepData.firstWhere(
-      (e) => DateFormat('yyyy-MM-dd').format(e['date'] as DateTime) == key,
-      orElse: () => <String, dynamic>{},
-    );
-
-    final deep  = _parseToMinutes(entry['deepSleep']);
-    final rem   = _parseToMinutes(entry['remSleep']);
-    final light = _parseToMinutes(entry['lightSleep']);
-    final awake = _parseToMinutes(entry['awakeTime']);
-    final total = deep + rem + light + awake;
-
-    return [
-      if (deep  > 0) '• Deep:  ${_formatDuration(deep)}',
-      if (rem   > 0) '• REM:   ${_formatDuration(rem)}',
-      if (light > 0) '• Light: ${_formatDuration(light)}',
-      if (awake > 0) '• Awake: ${_formatDuration(awake)}',
-      'Total: ${_formatDuration(total)}',
-    ].join('\n');
+  // Helper to fetch the entry map for a given bar index
+  Map<String, dynamic> _entryAt(int index, List<DateTime> days, Map<String, Map<String, dynamic>> dataByDate) {
+    final key = DateFormat('yyyy-MM-dd').format(days[index]);
+    return dataByDate[key] ?? <String, dynamic>{};
   }
 
+    /// Find the largest total-sleep value + 40 for padding.
   double _calculateMaxY() {
     double maxY = 0.0;
     for (var e in widget.sleepData) {
-      final total = _parseToMinutes(e['deepSleep']) +
-                    _parseToMinutes(e['remSleep']) +
-                    _parseToMinutes(e['lightSleep']) +
-                    _parseToMinutes(e['awakeTime']);
+      final total = _parseToMinutes(e['deepSleep'])
+                  + _parseToMinutes(e['remSleep'])
+                  + _parseToMinutes(e['lightSleep'])
+                  + _parseToMinutes(e['awakeTime']);
       if (total > maxY) maxY = total;
     }
     return maxY + 40.0;
   }
+
+  /// Builds a Text row with a bold key and its formatted value.
+Widget _buildTooltipRow(String key, String value) {
+  return RichText(
+    text: TextSpan(
+      children: [
+        TextSpan(
+          text: '$key: ',
+          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        TextSpan(
+          text: value,
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
+      ],
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -73,15 +75,16 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
       (i) => DateTime(now.year, now.month, now.day - (6 - i)),
     );
 
-    // Build barGroups same as before
+    // Map date → record
     final dataByDate = {
       for (var e in widget.sleepData)
         DateFormat('yyyy-MM-dd').format(e['date'] as DateTime): e
     };
+
+    // Build barGroups
     final barGroups = <BarChartGroupData>[];
     for (int i = 0; i < past7Days.length; i++) {
-      final key   = DateFormat('yyyy-MM-dd').format(past7Days[i]);
-      final entry = dataByDate[key] ?? {};
+      final entry = _entryAt(i, past7Days, dataByDate);
       final deep  = _parseToMinutes(entry['deepSleep']);
       final rem   = _parseToMinutes(entry['remSleep']);
       final light = _parseToMinutes(entry['lightSleep']);
@@ -97,20 +100,38 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
             width: 18.0,
             borderRadius: BorderRadius.circular(2),
             rodStackItems: [
-              BarChartRodStackItem(0, deep  > 0 ? deep  : minVis, const Color(0xFF80CBC4)),
-              BarChartRodStackItem(deep, deep + (rem   > 0 ? rem   : minVis), const Color(0xFFCE93D8)),
+              BarChartRodStackItem(0, deep > 0 ? deep : minVis, const Color(0xFF80CBC4)),
+              BarChartRodStackItem(deep, deep + (rem > 0 ? rem : minVis), const Color(0xFFCE93D8)),
               BarChartRodStackItem(deep + rem, deep + rem + (light > 0 ? light : minVis), const Color(0xFFFFF59D)),
               BarChartRodStackItem(deep + rem + light, total > 0 ? total : minVis, const Color(0xFFE57373)),
             ],
-          )
+          ),
         ],
       ));
     }
 
+    final totals = <double>[];
+final restTotals = <double>[]; // deep + rem
+
+for (int i = 0; i < past7Days.length; i++) {
+  final entry  = _entryAt(i, past7Days, dataByDate);
+  final deep   = _parseToMinutes(entry['deepSleep']);
+  final rem    = _parseToMinutes(entry['remSleep']);
+  final light  = _parseToMinutes(entry['lightSleep']);
+  final awake  = _parseToMinutes(entry['awakeTime']);
+  final total  = deep + rem + light + awake;
+  totals.add(total);
+  restTotals.add(deep + rem);
+}
+
+// overall averages
+final avgTotal = totals.isEmpty ? 0.0 : totals.reduce((a, b) => a + b) / totals.length;
+final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) / restTotals.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ─── Title ────────────────────────────────────────────────────────────────
+        // Title
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Text(
@@ -124,7 +145,7 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
           ),
         ),
 
-        // ─── Chart & Legend ────────────────────────────────────────────────────────
+        // Chart + Legend
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -137,21 +158,21 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
                   children: [
                     Column(
                       children: [
+                        // Animated BarChart
                         SizedBox(
                           height: chartH,
                           child: TweenAnimationBuilder<double>(
                             tween: Tween(begin: 0.0, end: 1.0),
-                            duration: const Duration(milliseconds: 1000),
+                            duration: const Duration(milliseconds: 800),
                             curve: Curves.easeInOut,
                             builder: (context, anim, _) {
-                              // Animate bar heights
                               final animatedGroups = barGroups.map((grp) {
                                 final rods = grp.barRods.map((rod) {
                                   final toY = rod.toY * anim;
                                   double start = 0.0;
                                   final stacks = rod.rodStackItems.map((item) {
                                     final from = item.fromY * anim;
-                                    final to   = item.toY * anim;
+                                    final to   = item.toY   * anim;
                                     final seg  = BarChartRodStackItem(from, to, item.color);
                                     start = to;
                                     return seg;
@@ -171,6 +192,8 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
                                   maxY: _calculateMaxY(),
                                   barGroups: animatedGroups,
                                   alignment: BarChartAlignment.spaceAround,
+
+                                  // Titles
                                   titlesData: FlTitlesData(
                                     leftTitles: AxisTitles(
                                       sideTitles: SideTitles(
@@ -197,66 +220,84 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
                                         },
                                       ),
                                     ),
-                                    topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    topTitles:    AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    rightTitles:  AxisTitles(sideTitles: SideTitles(showTitles: false)),
                                   ),
+
+                                  // Grid
                                   gridData: FlGridData(
                                     show: true,
                                     horizontalInterval: 60.0,
-                                    getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white24, strokeWidth: 0.5),
+                                    getDrawingHorizontalLine: (_) =>
+                                        const FlLine(color: Colors.white24, strokeWidth: 0.5),
                                     drawVerticalLine: false,
                                   ),
+
+extraLinesData: ExtraLinesData(
+  horizontalLines: [
+    // Average restorative sleep (deep+REM)
+    HorizontalLine(
+      y: avgRest,
+      color: Colors.greenAccent.withOpacity(0.7),
+      strokeWidth: 1,
+      dashArray: [4, 4],
+      label: HorizontalLineLabel(
+        show: true,
+        alignment: Alignment.topLeft,               // ← move to left
+        labelResolver: (_) => _formatDuration(avgRest),// ← only “1h59m”
+        style: const TextStyle(color: Colors.greenAccent, fontSize: 10),
+      ),
+    ),
+    // Average total sleep
+    HorizontalLine(
+      y: avgTotal,
+      color: Colors.blueAccent.withOpacity(0.7),
+      strokeWidth: 1,
+      dashArray: [4, 4],
+      label: HorizontalLineLabel(
+        show: true,
+        alignment: Alignment.bottomLeft,               // ← move to left
+        labelResolver: (_) => _formatDuration(avgTotal),// ← only “7h30m”
+        style: const TextStyle(color: Colors.blueAccent, fontSize: 10),
+      ),
+    ),
+  ],
+),
+
+
+
 barTouchData: BarTouchData(
   enabled: true,
-  touchTooltipData: BarTouchTooltipData(
-    // 1) keep it fully inside the chart bounds
-    fitInsideHorizontally: true,
-    fitInsideVertically:   true,
+  touchTooltipData: BarTouchTooltipData(getTooltipItem: (_,__,___,____) => null),
+  touchCallback: (event, response) {
+    // grab the tapped stack‐item (if any)
+    final touchedSpot = response?.spot;
+    if (!event.isInterestedForInteractions ||
+        touchedSpot == null ||
+        touchedSpot.touchedStackItem == null) {
+      setState(() {
+        touchedIndex    = null;
+        touchPosition   = null;
+        _touchedSegment = null;
+      });
+      return;
+    }
 
-    // 2) add breathing room
-    tooltipPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-    tooltipMargin: 4,
+    // now it’s safe to read from touchedSpot
+    final idx     = touchedSpot.touchedBarGroupIndex;
+    final offset  = touchedSpot.offset;
+    final color   = touchedSpot.touchedStackItem!.color;
+    final segment = (color == const Color(0xFF80CBC4) ||
+                     color == const Color(0xFFCE93D8))
+        ? 'dr'
+        : 'la';
 
-    // 3) two‐column, date + D/R / L/A rows
-    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-      final idx = group.x.toInt();
-      final date = past7Days[idx];
-      final key  = DateFormat('yyyy-MM-dd').format(date);
-      final entry = dataByDate[key] ?? {};
-
-      final deep  = _parseToMinutes(entry['deepSleep']);
-      final rem   = _parseToMinutes(entry['remSleep']);
-      final light = _parseToMinutes(entry['lightSleep']);
-      final awake = _parseToMinutes(entry['awakeTime']);
-
-      final left1  = 'D:${_formatDuration(deep)}';
-      final right1 = 'R:${_formatDuration(rem)}';
-      final left2  = 'L:${_formatDuration(light)}';
-      final right2 = 'A:${_formatDuration(awake)}';
-
-      return BarTooltipItem(
-        '',
-        const TextStyle(), // we’ll use spans only
-        children: [
-          // Date header
-          TextSpan(
-            text: '${DateFormat.MMMd().format(date)}\n',
-            style: const TextStyle(color: Colors.white70, fontSize: 10),
-          ),
-          // Deep / REM row
-          TextSpan(
-            text: '$left1   $right1\n',
-            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-          // Light / Awake row
-          TextSpan(
-            text: '$left2   $right2',
-            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-        ],
-      );
-    },
-  ),
+    setState(() {
+      touchedIndex    = idx;
+      touchPosition   = offset;
+      _touchedSegment = segment;
+    });
+  },
 ),
 
                                   borderData: FlBorderData(show: false),
@@ -265,7 +306,10 @@ barTouchData: BarTouchData(
                             },
                           ),
                         ),
-                        SizedBox(height: legendH),
+
+                        const SizedBox(height: 8),
+
+                        // Legend
                         Wrap(
                           alignment: WrapAlignment.center,
                           spacing: 12,
@@ -275,33 +319,49 @@ barTouchData: BarTouchData(
                             _LegendItem(label: 'REM',   color: Color(0xFFCE93D8)),
                             _LegendItem(label: 'Light', color: Color(0xFFFFF59D)),
                             _LegendItem(label: 'Awake', color: Color(0xFFE57373)),
+                            _LegendLineItem(label: 'Avg Rest',  color: Colors.greenAccent), // ← new
+                            _LegendLineItem(label: 'Avg Total', color: Colors.blueAccent),  // ← new
                           ],
                         ),
                       ],
                     ),
-                    if (touchedIndex != null && touchPosition != null)
-                      Positioned(
-                        left: touchPosition!.dx - 60,
-                        top: (touchPosition!.dy - 140).clamp(16.0, double.infinity),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blueGrey.shade700,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _buildTooltipText(touchedIndex!),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+// Manual overlay tooltip
+if (touchedIndex != null && touchPosition != null && _touchedSegment != null)
+  Positioned(
+    left: touchPosition!.dx - 60,
+    top: (touchPosition!.dy - 140).clamp(16.0, double.infinity),
+    child: Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.blueGrey.shade700,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Always show date at top
+            Text(
+              DateFormat.MMMd().format(past7Days[touchedIndex!]),
+              style: const TextStyle(color: Colors.white70, fontSize: 10),
+            ),
+            const SizedBox(height: 4),
+            // Show rows based on which segment was touched
+            if (_touchedSegment == 'dr') ...[
+              _buildTooltipRow('Deep', _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['deepSleep']))),
+              _buildTooltipRow('REM',  _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['remSleep']))),
+            ] else ...[
+              _buildTooltipRow('Light', _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['lightSleep']))),
+              _buildTooltipRow('Awake', _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['awakeTime']))),
+            ],
+          ],
+        ),
+      ),
+    ),
+  ),
+
+
                   ],
                 ),
               );
@@ -313,20 +373,36 @@ barTouchData: BarTouchData(
   }
 }
 
+/// Square swatch + label for the four sleep stages
 class _LegendItem extends StatelessWidget {
   final String label;
   final Color color;
   const _LegendItem({required this.label, required this.color});
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 12.0, height: 12.0, color: color),
-        const SizedBox(width: 4.0),
-        Text(label, style: const TextStyle(fontSize: 12.0)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 12, height: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      );
+}
+
+/// Tiny line swatch + label for our average‐lines
+class _LegendLineItem extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _LegendLineItem({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 16, height: 2, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      );
 }
