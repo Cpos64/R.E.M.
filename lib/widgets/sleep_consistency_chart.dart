@@ -31,6 +31,68 @@ double _parseTime(String? text) {
   }
 }
 
+/// Renders a Garmin-style two-column tooltip.
+Widget _buildTwoColumnTooltip({
+  required DateTime date,
+  required String leftLabel,
+  required String leftTime,
+  required String rightLabel,
+  required String rightTime,
+}) {
+  final dateStr = DateFormat.MMMMd().format(date); // e.g. “April 27”
+  return Container(
+    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+    decoration: BoxDecoration(
+      color: Colors.grey[900]!.withOpacity(0.9),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Date header (smaller, semi-opaque)
+        Text(
+          dateStr,
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 10,
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        // Two-column row: left = earlier, right = later
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // LEFT column
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(leftTime, style: TextStyle(color: Colors.white, fontSize: 12)),
+                  Text(leftLabel, style: TextStyle(color: Colors.white70, fontSize: 10)),
+                ],
+              ),
+            ),
+
+            // small gutter
+            const SizedBox(width: 12),
+
+            // RIGHT column
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(rightTime, style: TextStyle(color: Colors.white, fontSize: 12)),
+                  Text(rightLabel, style: TextStyle(color: Colors.white70, fontSize: 10)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -162,64 +224,91 @@ BarChartData(
 barTouchData: BarTouchData(
   enabled: true,
   touchTooltipData: BarTouchTooltipData(
-      fitInsideHorizontally: true,
-      fitInsideVertically: true,
-    tooltipPadding: const EdgeInsets.all(6),
-    tooltipMargin: 4,
+    fitInsideHorizontally: true,
+    fitInsideVertically:   true,
+    tooltipPadding:        const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+    tooltipMargin:         4,
+
+    // 1) Background color for the tooltip box
+    getTooltipColor: (group) => Colors.grey[900]!.withOpacity(0.9),
+
+    // 2) Rich-text tooltip with varied font sizes and non-breaking spaces
     getTooltipItem: (group, groupIndex, rod, rodIndex) {
-      // 1) Figure out which day this is
+      // a) Determine the date for this bar
       final date = last7[group.x.toInt()];
 
-      // 2) Find the matching sleep-entry for that day
+      // b) Find the matching entry (or empty map if none)
       final entry = sleepData.firstWhere(
         (e) {
           final dt = e['date'] as DateTime;
-          return dt.year == date.year
-              && dt.month == date.month
-              && dt.day == date.day;
+          return dt.year == date.year &&
+                 dt.month == date.month &&
+                 dt.day == date.day;
         },
         orElse: () => <String, dynamic>{},
       );
 
-      // 3) A little helper to normalize any ISO or "h:mm a" string
-      String fmtTime(String? raw) {
-        if (raw == null || raw.isEmpty) return '—';
-        final iso = DateTime.tryParse(raw);
-        if (iso != null) return DateFormat.jm().format(iso);
-        try {
-          return DateFormat.jm().format(DateFormat.jm().parse(raw));
-        } catch (_) {
-          return raw;
-        }
-      }
+      // c) Helper to normalize any ISO or “h:mm a” string
+String fmt(String? raw) {
+  if (raw == null || raw.isEmpty) return '—';
+  final iso = DateTime.tryParse(raw);
+  String out;
+  if (iso != null) {
+    out = DateFormat.jm().format(iso);
+  } else {
+    try {
+      out = DateFormat.jm().format(DateFormat.jm().parse(raw));
+    } catch (_) {
+      return raw;
+    }
+  }
+  // Prevent the time from splitting before AM/PM:
+  return out.replaceAll(' ', '\u00A0');
+}
 
-      // 4) Grab each of the three times
-      final bed    = fmtTime(entry['timeInBed']  as String?);
-      final asleep = fmtTime(entry['timeAsleep'] as String?);
-      final wake   = fmtTime(entry['timeAwake']  as String?);
+      // d) Pull in the three times
+      final bed    = fmt(entry['timeInBed']  as String?);
+      final asleep = fmt(entry['timeAsleep'] as String?);
+      final wake   = fmt(entry['timeAwake']  as String?);
 
-      // 5) Now branch on rodIndex:
-      // rodIndex == 0 → the “In Bed → Asleep” segment
-      // rodIndex == 1 → the “Asleep → Wake” segment
-      if (rodIndex == 0) {
-        return BarTooltipItem(
-          '${DateFormat.yMMMd().format(date)}\n'
-          'Bed: $bed\n'
-          'Asleep: $asleep',
-          const TextStyle(color: Colors.white, fontSize: 12),
-        );
-      } else {
-        return BarTooltipItem(
-          '${DateFormat.yMMMd().format(date)}\n'
-          'Asleep: $asleep\n'
-          'Wake: $wake',
-          const TextStyle(color: Colors.white, fontSize: 12),
-        );
-      }
+      // e) Decide which segment (rodIndex 0 = in-bed→asleep, 1 = asleep→wake)
+      final leftTime   = rodIndex == 0 ? bed    : asleep;
+      final rightTime  = rodIndex == 0 ? asleep : wake;
+      final leftLabel  = rodIndex == 0 ? 'Bedtime' : 'Asleep';
+      final rightLabel = rodIndex == 0 ? 'Asleep'  : 'Wake';
+
+      // f) Use non-breaking spaces so the two “columns” never wrap
+      const sep = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
+      final line1 = '$leftTime$sep$rightTime';
+      final line2 = '$leftLabel$sep$rightLabel';
+
+      // g) Build and return a rich-text tooltip
+      return BarTooltipItem(
+        '',
+        const TextStyle(), // we’ll use children spans only
+        children: [
+          // Date header (smaller, semi-opaque)
+          TextSpan(
+            text: '${DateFormat.MMMMd().format(date)}\n',
+            style: TextStyle(color: Colors.white70, fontSize: 10),
+          ),
+
+          // Times row (larger & bold)
+          TextSpan(
+            text: '$line1\n',
+            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+          ),
+
+          // Labels row (small, semi-opaque)
+          TextSpan(
+            text: line2,
+            style: TextStyle(color: Colors.white70, fontSize: 10),
+          ),
+        ],
+      );
     },
   ),
 ),
-
 
 
               alignment: BarChartAlignment.spaceAround,
