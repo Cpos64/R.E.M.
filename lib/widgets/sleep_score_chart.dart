@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+/// ── 1) The core SleepScoreChart ───────────────────────────────────────────────
 class SleepScoreChart extends StatelessWidget {
   final List<Map<String, dynamic>> sleepData;
 
@@ -12,124 +13,239 @@ class SleepScoreChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<FlSpot> sleepScoreSpots = [];
+    // 1) Fixed 7-day window
+    final today = DateTime.now();
+    final last7 = List.generate(7, (i) {
+      final d = today.subtract(Duration(days: 6 - i));
+      return DateTime(d.year, d.month, d.day);
+    });
 
-    for (int i = 0; i < sleepData.length; i++) {
-      final score = sleepData[i]['sleepScore'] ?? 0;
-      sleepScoreSpots.add(FlSpot(i.toDouble(), score.toDouble()));
+    // 2) Map dates → scores
+    final scores = List<double?>.filled(7, null);
+    for (var entry in sleepData) {
+      final dt = entry['date'] as DateTime;
+      final idx = last7.indexWhere((d) =>
+        d.year == dt.year && d.month == dt.month && d.day == dt.day);
+      if (idx >= 0) {
+        scores[idx] = (entry['sleepScore'] as num).toDouble();
+      }
     }
 
-    final minY = sleepScoreSpots.map((e) => e.y).fold<double>(100, (a, b) => a < b ? a : b) - 10;
-    final maxY = sleepScoreSpots.map((e) => e.y).fold<double>(0, (a, b) => a > b ? a : b) + 10;
+    // 3) Build spots
+    final spots = List<FlSpot>.generate(7, (i) {
+      final v = scores[i];
+      return FlSpot(i.toDouble(), v ?? double.nan);
+    });
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 24.0),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 420),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 32.0),
-                child: LineChart(
-                  LineChartData(
-                    clipData: FlClipData.all(),
-                    minX: 0,
-                    maxX: sleepScoreSpots.length > 1
-                        ? (sleepScoreSpots.length - 1).toDouble() + 0.3
-                        : 1.0,
-                    minY: minY.clamp(0.0, 100.0),
-                    maxY: maxY.clamp(0.0, 100.0),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: 20,
-                          reservedSize: 40,
-                          getTitlesWidget: (value, _) => Text(
-                            value.toInt().toString(),
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: 1,
-                          getTitlesWidget: (value, _) {
-                            int index = value.toInt();
-                            if (index < 0 || index >= sleepData.length) return const SizedBox();
-                            final date = sleepData[index]['date'] as DateTime;
-                            return Text(
-                              DateFormat('E').format(date),
-                              style: const TextStyle(fontSize: 10),
-                            );
-                          },
-                        ),
-                      ),
-                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: true,
-                      drawHorizontalLine: true,
-                      horizontalInterval: 20,
-                      verticalInterval: 1.0,
-                      getDrawingHorizontalLine: (_) => FlLine(
-                        color: Colors.white24,
-                        strokeWidth: 0.5,
-                      ),
-                      getDrawingVerticalLine: (_) => FlLine(
-                        color: Colors.white24,
-                        strokeWidth: 0.5,
-                      ),
-                    ),
-                    borderData: FlBorderData(show: true),
-                    lineTouchData: LineTouchData(
-                      enabled: true,
-                      handleBuiltInTouches: true,
-                      getTouchedSpotIndicator: (barData, indicators) {
-                        return indicators.map((index) {
-                          return TouchedSpotIndicatorData(
-                            FlLine(color: Colors.white24, strokeWidth: 1),
-                            FlDotData(show: true),
-                          );
-                        }).toList();
-                      },
-                      touchTooltipData: LineTouchTooltipData(
-                        getTooltipItems: (touchedSpots) {
-  if (touchedSpots.isEmpty) return [];
-  final index = touchedSpots.first.x.toInt();
-  final date = sleepData[index]['date'] as DateTime;
-  final score = sleepData[index]['sleepScore'];
-  return [
-    LineTooltipItem(
-      '${DateFormat('E').format(date)}\nScore: $score',
-      const TextStyle(color: Colors.white, fontSize: 12),
-    ),
-  ];
-}
+    // 4) Compute stats
+    final valid = scores.where((s) => s != null).cast<double>().toList();
+    final avg = valid.isEmpty
+      ? 0.0
+      : valid.reduce((a, b) => a + b) / valid.length;
+    final minY = (valid.isEmpty ? 0.0 : valid.reduce((a, b) => a < b ? a : b)) - 10;
+    final maxY = (valid.isEmpty ? 100.0 : valid.reduce((a, b) => a > b ? a : b)) + 10;
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Title
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            'Sleep Score',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onBackground,
+            ),
+          ),
+        ),
+
+        // Chart
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 24, left: 12, right: 12),
+            child: LineChart(
+              LineChartData(
+                clipData: FlClipData.all(),
+                minX: 0,
+                maxX: last7.length > 1
+                    ? (last7.length - 1).toDouble() + 0.3
+                    : 1.0,
+                minY: minY.clamp(0.0, 100.0),
+                maxY: maxY.clamp(0.0, 100.0),
+
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 20,
+                      reservedSize: 40,
+                      getTitlesWidget: (v, _) => Text(
+                        v.toInt().toString(),
+                        style: const TextStyle(fontSize: 10),
                       ),
                     ),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: sleepScoreSpots,
-                        isCurved: false,
-                        color: const Color(0xFF64B5F6),
-                        dotData: FlDotData(show: true),
-                        barWidth: 2,
+                  ),
+                  bottomTitles: AxisTitles(
+  sideTitles: SideTitles(
+    showTitles: true,
+    interval: 1,
+    getTitlesWidget: (double value, TitleMeta meta) {
+      // 1) only label exact integer positions
+      if (value % 1 != 0) return const SizedBox();
+
+      // 2) convert to index and guard range
+      final idx = value.toInt();
+      if (idx < 0 || idx >= last7.length) return const SizedBox();
+
+      // 3) render the weekday
+      return Text(
+        DateFormat('E').format(last7[idx]),
+        style: const TextStyle(fontSize: 10),
+      );
+    },
+  ),
+),
+
+                  topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine:   true,
+                  drawHorizontalLine: true,
+                  horizontalInterval: 20,
+                  verticalInterval:   1,
+                  getDrawingHorizontalLine: (_) =>
+                      const FlLine(color: Colors.white24, strokeWidth: 0.5),
+                  getDrawingVerticalLine: (_) =>
+                      const FlLine(color: Colors.white24, strokeWidth: 0.5),
+                ),
+
+                extraLinesData: ExtraLinesData(
+                  horizontalLines: [
+                    HorizontalLine(
+                      y: avg,
+                      color: Colors.white54,
+                      strokeWidth: 1,
+                      dashArray: [4, 4],
+                      label: HorizontalLineLabel(
+                        show: true,
+                        alignment: Alignment.topRight,
+                        labelResolver: (_) => 'Avg: ${avg.round()}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 10),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  handleBuiltInTouches: true,
+                  getTouchedSpotIndicator: (data, idxs) => idxs.map((i) =>
+                    TouchedSpotIndicatorData(
+                      FlLine(color: Colors.white24, strokeWidth: 1),
+                      FlDotData(show: true),
+                    )
+                  ).toList(),
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (spots) {
+                      if (spots.isEmpty) return [];
+                      final i = spots.first.x.toInt();
+                      final dateStr = DateFormat('E, MMM d').format(last7[i]);
+                      final score  = scores[i]?.round() ?? 0;
+                      return [
+                        LineTooltipItem(
+                          '',
+                          const TextStyle(),
+                          children: [
+                            TextSpan(
+                              text: '$dateStr\n',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'Score: ',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '$score',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ];
+                    },
                   ),
                 ),
+
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: Theme.of(context).colorScheme.primary,
+                    barWidth: 3,
+                    dotData: FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    ),
+                  ),
+                ],
+
+                borderData: FlBorderData(show: true),
               ),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
+    );
+  }
+}
+
+/// ── 2) The fade-in wrapper ────────────────────────────────────────────────────
+class FadingSleepScoreChart extends StatefulWidget {
+  final List<Map<String, dynamic>> sleepData;
+
+  const FadingSleepScoreChart({
+    Key? key,
+    required this.sleepData,
+  }) : super(key: key);
+
+  @override
+  _FadingSleepScoreChartState createState() => _FadingSleepScoreChartState();
+}
+
+class _FadingSleepScoreChartState extends State<FadingSleepScoreChart> {
+  double _opacity = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() => _opacity = 1.0);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _opacity,
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+      child: SleepScoreChart(sleepData: widget.sleepData),
     );
   }
 }

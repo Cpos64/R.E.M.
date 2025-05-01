@@ -150,6 +150,8 @@ Future<void> saveSleepLogAuto({
     deepMinutes: deep.toInt(),
     remMinutes: rem.toInt(),
     awakeMinutes: awake.toInt(),
+    timeInBedStr: timeInBed,
+    timeAsleepStr: timeAsleep,
   );
 
   final lightStr = '${(light ~/ 60)}h${(light % 60).round()}m';
@@ -201,56 +203,113 @@ final timeToFallAsleepISO = timeToFallAsleep.toString(); // e.g., "0:15:00.00000
   await _firestore.collection('sleep_logs').add(data);
 }
 
+/// Computes a 0–100 sleep score from raw minutes and times.
 double _computeSleepScore({
   required int totalMinutes,
   required int deepMinutes,
   required int remMinutes,
   required int awakeMinutes,
+  required String timeInBedStr,   // e.g. “10:30 PM”
+  required String timeAsleepStr,  // e.g. “10:50 PM”
 }) {
-  if (totalMinutes == 0) return 0;
+  if (totalMinutes <= 0) return 0;
 
+  // ── Helper to parse "h:mm a" into a DateTime on today ──
+  DateTime _parseTime(String txt) {
+    final now = DateTime.now();
+    final dt = DateFormat.jm().parse(txt);
+    return DateTime(now.year, now.month, now.day, dt.hour, dt.minute);
+  }
+
+  // 1) Duration Score (0–20)
+  //    <6h = 0, 6–7h → 0–10, 7–9h →10–20, >9h=20
+  double durationScore;
+  if (totalMinutes <= 360) {
+    durationScore = 0;
+  } else if (totalMinutes <= 420) {
+    durationScore = (totalMinutes - 360) / 60 * 10;
+  } else if (totalMinutes <= 540) {
+    durationScore = 10 + (totalMinutes - 420) / 120 * 10;
+  } else {
+    durationScore = 20;
+  }
+
+  // 2) Sleep Efficiency Score (0–20)
+  //    efficiency = sleepTime / (sleepTime + awakeTime)
+  final efficiency = totalMinutes / (totalMinutes + awakeMinutes);
+  double efficiencyScore;
+  if (efficiency <= 0.75) {
+    efficiencyScore = 0;
+  } else if (efficiency <= 0.85) {
+    efficiencyScore = (efficiency - 0.75) / 0.10 * 10;
+  } else if (efficiency <= 0.95) {
+    efficiencyScore = 10 + (efficiency - 0.85) / 0.10 * 10;
+  } else {
+    efficiencyScore = 20;
+  }
+
+  // 3) Deep-sleep % Score (0–20) – ideal 15–20%
   final deepPct = deepMinutes / totalMinutes;
+  double deepScore;
+  if (deepPct <= 0.10) {
+    deepScore = 0;
+  } else if (deepPct <= 0.15) {
+    deepScore = (deepPct - 0.10) / 0.05 * 10;
+  } else if (deepPct <= 0.20) {
+    deepScore = 10 + (deepPct - 0.15) / 0.05 * 10;
+  } else {
+    deepScore = 20;
+  }
+
+  // 4) REM % Score (0–20) – ideal 20–25%
   final remPct = remMinutes / totalMinutes;
+  double remScore;
+  if (remPct <= 0.15) {
+    remScore = 0;
+  } else if (remPct <= 0.20) {
+    remScore = (remPct - 0.15) / 0.05 * 10;
+  } else if (remPct <= 0.25) {
+    remScore = 10 + (remPct - 0.20) / 0.05 * 10;
+  } else {
+    remScore = 20;
+  }
+
+  // 5) Awake-time Penalty (0–10) – less awake is better
+  //    <3% awake →10, 3–7% → 10→0 linear, >7%→0
   final awakePct = awakeMinutes / totalMinutes;
-
-  double score = 0;
-
-  // Total duration score
-  if (totalMinutes >= 420 && totalMinutes <= 540) {
-    score += 30;
-  } else if (totalMinutes >= 360) {
-    score += 20;
+  double awakeScore;
+  if (awakePct < 0.03) {
+    awakeScore = 10;
+  } else if (awakePct <= 0.07) {
+    awakeScore = (0.07 - awakePct) / 0.04 * 10;
   } else {
-    score += 10;
+    awakeScore = 0;
   }
 
-  // Deep sleep score
-  if (deepPct >= 0.13 && deepPct <= 0.23) {
-    score += 25;
-  } else if (deepPct >= 0.10 && deepPct <= 0.25) {
-    score += 15;
+  // 6) Sleep-Onset Latency (0–10) – faster to sleep is better
+  final inBed   = _parseTime(timeInBedStr);
+  final asleep  = _parseTime(timeAsleepStr);
+  final latency = asleep.difference(inBed).inMinutes.clamp(0, 60);
+  double latencyScore;
+  if (latency <= 15) {
+    latencyScore = 10;
+  } else if (latency <= 30) {
+    latencyScore = (30 - latency) / 15 * 5; // 15–30 → 5→0
   } else {
-    score += 5;
+    latencyScore = 0;
   }
 
-  // REM sleep score
-  if (remPct >= 0.20 && remPct <= 0.25) {
-    score += 25;
-  } else if (remPct >= 0.15 && remPct <= 0.30) {
-    score += 15;
-  } else {
-    score += 5;
-  }
+  // ── Sum & clamp ──
+  final raw = durationScore
+            + efficiencyScore
+            + deepScore
+            + remScore
+            + awakeScore
+            + latencyScore;
 
-  // Awake time penalty
-  if (awakePct < 0.05) {
-    score += 20;
-  } else if (awakePct < 0.10) {
-    score += 10;
-  }
-
-  return score.clamp(0, 100).roundToDouble();
+  return raw.clamp(0, 100).roundToDouble();
 }
+
 
   Future<void> updateSleepLog(
     String docId,
