@@ -139,7 +139,7 @@ final drawnSpots = rawSpots.where((s) => !s.y.isNaN).toList();
                       dashArray: [4, 4],
                       label: HorizontalLineLabel(
                         show: true,
-                        alignment: Alignment.topRight,
+                        alignment: Alignment.topLeft,
                         labelResolver: (_) => 'Avg: ${avg.round()}',
                         style: const TextStyle(color: Colors.white70, fontSize: 10),
                       ),
