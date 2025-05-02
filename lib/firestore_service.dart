@@ -81,6 +81,39 @@ class FirestoreService {
     }).toList().reversed.toList(); // oldest to newest
   }
 
+  /// Emits the last 7 sleep-log entries (oldest→newest) whenever they change.
+Stream<List<Map<String, dynamic>>> watchLast7SleepLogsForChart() {
+  final user = _auth.currentUser;
+  if (user == null) return const Stream.empty();
+
+  return _firestore
+      .collection('sleep_logs')
+      .where('userId', isEqualTo: user.uid)
+      .orderBy('timestamp', descending: true)
+      .limit(7)
+      .snapshots()  // ← live updates from Firestore
+      .map((snap) {
+        // map each document into the same shape your chart expects
+        final list = snap.docs.map((doc) {
+          final d = doc.data();
+          return {
+            'date':       (d['timestamp'] as Timestamp).toDate(),
+            'totalSleep': d['totalDuration']  ?? '',
+            'deepSleep':  d['deepSleep']      ?? '',
+            'remSleep':   d['remSleep']       ?? '',
+            'lightSleep': d['lightSleep']     ?? '',
+            'awakeTime':  d['awakeTime']      ?? '',
+            'sleepScore': d['sleepScore']     ?? 0,
+            'timeInBed':  d['timeInBed']      ?? '',
+            'timeAsleep': d['timeAsleep']     ?? '',
+            'timeAwake':  d['timeAwake']      ?? '',
+          };
+        }).toList();
+        return list.reversed.toList(); // oldest→newest
+      });
+}
+
+
   Future<void> saveSleepLog({
     required String totalDuration,
     required String deepSleep,

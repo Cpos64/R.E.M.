@@ -4,46 +4,48 @@ import 'package:intl/intl.dart';
 
 /// ── 1) The core SleepScoreChart ───────────────────────────────────────────────
 class SleepScoreChart extends StatelessWidget {
-  final List<Map<String, dynamic>> sleepData;
+  final List<Map<String, dynamic>?> buckets;
+  final List<DateTime> days;
 
   const SleepScoreChart({
-    super.key,
-    required this.sleepData,
-  });
+    Key? key,
+    required this.buckets,
+    required this.days,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // 1) Fixed 7-day window
-    final today = DateTime.now();
-    final last7 = List.generate(7, (i) {
-      final d = today.subtract(Duration(days: 6 - i));
-      return DateTime(d.year, d.month, d.day);
-    });
+    // Thinning labels for longer windows
+    final labelInterval = days.length <= 7 ? 1.0 : (days.length / 6).ceilToDouble();
 
-    // 2) Map dates → scores
-    final scores = List<double?>.filled(7, null);
-    for (var entry in sleepData) {
-      final dt = entry['date'] as DateTime;
-      final idx = last7.indexWhere((d) =>
-        d.year == dt.year && d.month == dt.month && d.day == dt.day);
-      if (idx >= 0) {
-        scores[idx] = (entry['sleepScore'] as num).toDouble();
+    // 1️⃣ Gather only the non-null score values and cast to double
+    final scoreList = buckets
+        .where((b) => b != null && b!['sleepScore'] != null)
+        .map((b) => (b!['sleepScore'] as num).toDouble())
+        .toList();
+
+    // 2️⃣ Compute the average (or 0 if no data)
+    final avgScore = scoreList.isEmpty
+        ? 0.0
+        : scoreList.reduce((a, b) => a + b) / scoreList.length;
+
+    // 3️⃣ Build spots from buckets (casting to num then to double)
+    final spots = <FlSpot>[];
+    for (var i = 0; i < buckets.length; i++) {
+      final entry = buckets[i];
+      if (entry != null && entry['sleepScore'] != null) {
+        final raw = entry['sleepScore'] as num;
+        spots.add(FlSpot(i.toDouble(), raw.toDouble()));
       }
     }
 
-    // 3) Build spots
-    final spots = List<FlSpot>.generate(7, (i) {
-      final v = scores[i];
-      return FlSpot(i.toDouble(), v ?? double.nan);
-    });
-
-    // 4) Compute stats
-    final valid = scores.where((s) => s != null).cast<double>().toList();
-    final avg = valid.isEmpty
-      ? 0.0
-      : valid.reduce((a, b) => a + b) / valid.length;
-    final minY = (valid.isEmpty ? 0.0 : valid.reduce((a, b) => a < b ? a : b)) - 10;
-    final maxY = (valid.isEmpty ? 100.0 : valid.reduce((a, b) => a > b ? a : b)) + 10;
+    // 4️⃣ Compute chart bounds from scoreList
+    final minY = scoreList.isEmpty
+        ? 0.0
+        : scoreList.reduce((a, b) => a < b ? a : b) - 10;
+    final maxY = scoreList.isEmpty
+        ? 100.0
+        : scoreList.reduce((a, b) => a > b ? a : b) + 10;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -70,8 +72,8 @@ class SleepScoreChart extends StatelessWidget {
               LineChartData(
                 clipData: FlClipData.all(),
                 minX: 0,
-                maxX: last7.length > 1
-                    ? (last7.length - 1).toDouble() + 0.3
+                maxX: buckets.length > 1
+                    ? (buckets.length - 1).toDouble() + 0.3
                     : 1.0,
                 minY: minY.clamp(0.0, 100.0),
                 maxY: maxY.clamp(0.0, 100.0),
@@ -88,37 +90,33 @@ class SleepScoreChart extends StatelessWidget {
                       ),
                     ),
                   ),
-                  bottomTitles: AxisTitles(
+bottomTitles: AxisTitles(
   sideTitles: SideTitles(
     showTitles: true,
-    interval: 1,
+    interval: labelInterval,
     getTitlesWidget: (double value, TitleMeta meta) {
-      // 1) only label exact integer positions
       if (value % 1 != 0) return const SizedBox();
-
-      // 2) convert to index and guard range
       final idx = value.toInt();
-      if (idx < 0 || idx >= last7.length) return const SizedBox();
-
-      // 3) render the weekday
+      if (idx < 0 || idx >= days.length) return const SizedBox();
+      // M/d gives e.g. 4/24, 5/2
       return Text(
-        DateFormat('E').format(last7[idx]),
+        DateFormat('M/d').format(days[idx]),
         style: const TextStyle(fontSize: 10),
       );
     },
   ),
 ),
 
-                  topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
 
                 gridData: FlGridData(
                   show: true,
-                  drawVerticalLine:   true,
+                  drawVerticalLine: true,
                   drawHorizontalLine: true,
                   horizontalInterval: 20,
-                  verticalInterval:   1,
+                  verticalInterval: 1,
                   getDrawingHorizontalLine: (_) =>
                       const FlLine(color: Colors.white24, strokeWidth: 0.5),
                   getDrawingVerticalLine: (_) =>
@@ -128,15 +126,16 @@ class SleepScoreChart extends StatelessWidget {
                 extraLinesData: ExtraLinesData(
                   horizontalLines: [
                     HorizontalLine(
-                      y: avg,
+                      y: avgScore,
                       color: Colors.white54,
                       strokeWidth: 1,
                       dashArray: [4, 4],
                       label: HorizontalLineLabel(
                         show: true,
-                        alignment: Alignment.topRight,
-                        labelResolver: (_) => 'Avg: ${avg.round()}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 10),
+                        alignment: Alignment.topLeft,
+                        labelResolver: (_) => 'Avg: ${avgScore.round()}',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 10),
                       ),
                     ),
                   ],
@@ -145,18 +144,19 @@ class SleepScoreChart extends StatelessWidget {
                 lineTouchData: LineTouchData(
                   enabled: true,
                   handleBuiltInTouches: true,
-                  getTouchedSpotIndicator: (data, idxs) => idxs.map((i) =>
-                    TouchedSpotIndicatorData(
-                      FlLine(color: Colors.white24, strokeWidth: 1),
-                      FlDotData(show: true),
-                    )
-                  ).toList(),
+                  getTouchedSpotIndicator: (data, idxs) => idxs
+                      .map((i) => TouchedSpotIndicatorData(
+                            FlLine(color: Colors.white24, strokeWidth: 1),
+                            FlDotData(show: true),
+                          ))
+                      .toList(),
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipItems: (spots) {
                       if (spots.isEmpty) return [];
                       final i = spots.first.x.toInt();
-                      final dateStr = DateFormat('E, MMM d').format(last7[i]);
-                      final score  = scores[i]?.round() ?? 0;
+                      final dateStr = DateFormat('E, MMM d').format(days[i]);
+                      final scoreValue =
+                          (buckets[i]?['sleepScore'] as num?)?.round() ?? 0;
                       return [
                         LineTooltipItem(
                           '',
@@ -177,7 +177,7 @@ class SleepScoreChart extends StatelessWidget {
                               ),
                             ),
                             TextSpan(
-                              text: '$score',
+                              text: '$scoreValue',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -200,7 +200,8 @@ class SleepScoreChart extends StatelessWidget {
                     dotData: FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      color: Theme.of(context).colorScheme.primary
+                          .withOpacity(0.2),
                     ),
                   ),
                 ],
@@ -217,11 +218,13 @@ class SleepScoreChart extends StatelessWidget {
 
 /// ── 2) The fade-in wrapper ────────────────────────────────────────────────────
 class FadingSleepScoreChart extends StatefulWidget {
-  final List<Map<String, dynamic>> sleepData;
+  final List<Map<String, dynamic>?> buckets;
+  final List<DateTime> days;
 
   const FadingSleepScoreChart({
     Key? key,
-    required this.sleepData,
+    required this.buckets,
+    required this.days,
   }) : super(key: key);
 
   @override
@@ -245,7 +248,10 @@ class _FadingSleepScoreChartState extends State<FadingSleepScoreChart> {
       opacity: _opacity,
       duration: const Duration(milliseconds: 800),
       curve: Curves.easeInOut,
-      child: SleepScoreChart(sleepData: widget.sleepData),
+      child: SleepScoreChart(
+        buckets: widget.buckets,
+        days: widget.days,
+      ),
     );
   }
 }
