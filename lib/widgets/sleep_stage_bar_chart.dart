@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class SleepStageBarChart extends StatefulWidget {
-  final List<Map<String, dynamic>> sleepData;
-  const SleepStageBarChart({Key? key, required this.sleepData}) : super(key: key);
+  final List<Map<String, dynamic>?> buckets;
+  final List<DateTime> days;
+
+  const SleepStageBarChart({
+    Key? key,
+    required this.buckets,
+    required this.days,
+  }) : super(key: key);
 
   @override
   _SleepStageBarChartState createState() => _SleepStageBarChartState();
@@ -23,110 +29,103 @@ class _SleepStageBarChartState extends State<SleepStageBarChart> {
     return (h * 60 + m).toDouble();
   }
 
-  String _formatDuration(double minutes) {
-    final h = minutes ~/ 60;
-    final m = (minutes % 60).round();
-    return h > 0 ? '${h}h${m}m' : '${m}m';
-  }
-
-  // Helper to fetch the entry map for a given bar index
-  Map<String, dynamic> _entryAt(int index, List<DateTime> days, Map<String, Map<String, dynamic>> dataByDate) {
-    final key = DateFormat('yyyy-MM-dd').format(days[index]);
-    return dataByDate[key] ?? <String, dynamic>{};
-  }
-
-    /// Find the largest total-sleep value + 40 for padding.
-  double _calculateMaxY() {
-    double maxY = 0.0;
-    for (var e in widget.sleepData) {
-      final total = _parseToMinutes(e['deepSleep'])
-                  + _parseToMinutes(e['remSleep'])
-                  + _parseToMinutes(e['lightSleep'])
-                  + _parseToMinutes(e['awakeTime']);
-      if (total > maxY) maxY = total;
-    }
-    return maxY + 40.0;
-  }
-
-  /// Builds a Text row with a bold key and its formatted value.
-Widget _buildTooltipRow(String key, String value) {
-  return RichText(
-    text: TextSpan(
-      children: [
-        TextSpan(
-          text: '$key: ',
-          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        TextSpan(
-          text: value,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-        ),
-      ],
-    ),
-  );
+String _formatDuration(double minutes) {
+  final h = minutes ~/ 60;
+  final m = (minutes % 60).round();
+  return h > 0 ? '${h}h${m}m' : '${m}m';
 }
 
 
+  Widget _buildTooltipRow(String key, String value) {
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '$key: ',
+            style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          TextSpan(
+            text: value,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final past7Days = List<DateTime>.generate(
-      7,
-      (i) => DateTime(now.year, now.month, now.day - (6 - i)),
-    );
 
-    // Map date → record
-    final dataByDate = {
-      for (var e in widget.sleepData)
-        DateFormat('yyyy-MM-dd').format(e['date'] as DateTime): e
-    };
+// how many days between labels
+final step = widget.days.length <= 7
+  ? 1
+  : (widget.days.length / 6).ceil();
 
-    // Build barGroups
+
+    // Build barGroups from buckets
     final barGroups = <BarChartGroupData>[];
-    for (int i = 0; i < past7Days.length; i++) {
-      final entry = _entryAt(i, past7Days, dataByDate);
-      final deep  = _parseToMinutes(entry['deepSleep']);
-      final rem   = _parseToMinutes(entry['remSleep']);
+    for (var i = 0; i < widget.buckets.length; i++) {
+      final entry = widget.buckets[i] ?? {};
+      final deep = _parseToMinutes(entry['deepSleep']);
+      final rem = _parseToMinutes(entry['remSleep']);
       final light = _parseToMinutes(entry['lightSleep']);
       final awake = _parseToMinutes(entry['awakeTime']);
       final total = deep + rem + light + awake;
       const minVis = 0.1;
 
-      barGroups.add(BarChartGroupData(
-        x: i,
-        barRods: [
-          BarChartRodData(
-            toY: total > 0 ? total : minVis,
-            width: 18.0,
-            borderRadius: BorderRadius.circular(2),
-            rodStackItems: [
-              BarChartRodStackItem(0, deep > 0 ? deep : minVis, const Color(0xFF80CBC4)),
-              BarChartRodStackItem(deep, deep + (rem > 0 ? rem : minVis), const Color(0xFFCE93D8)),
-              BarChartRodStackItem(deep + rem, deep + rem + (light > 0 ? light : minVis), const Color(0xFFFFF59D)),
-              BarChartRodStackItem(deep + rem + light, total > 0 ? total : minVis, const Color(0xFFE57373)),
-            ],
-          ),
-        ],
-      ));
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: total > 0 ? total : minVis,
+              width: 18.0,
+              borderRadius: BorderRadius.circular(2),
+              rodStackItems: [
+                BarChartRodStackItem(0, deep > 0 ? deep : minVis, const Color(0xFF80CBC4)),
+                BarChartRodStackItem(deep, deep + (rem > 0 ? rem : minVis), const Color(0xFFCE93D8)),
+                BarChartRodStackItem(deep + rem, deep + rem + (light > 0 ? light : minVis), const Color(0xFFFFF59D)),
+                BarChartRodStackItem(deep + rem + light, total > 0 ? total : minVis, const Color(0xFFE57373)),
+              ],
+            ),
+          ],
+        ),
+      );
     }
 
-    final totals = <double>[];
-final restTotals = <double>[]; // deep + rem
+    // Compute averages from buckets
+final valid = widget.buckets
+    .where((e) => e != null)            // drop missing days
+    .cast<Map<String, dynamic>>()       // they're non-null now
+    .toList();
 
-for (int i = 0; i < past7Days.length; i++) {
-  final entry  = _entryAt(i, past7Days, dataByDate);
-  final deep   = _parseToMinutes(entry['deepSleep']);
-  final rem    = _parseToMinutes(entry['remSleep']);
-  final light  = _parseToMinutes(entry['lightSleep']);
-  final awake  = _parseToMinutes(entry['awakeTime']);
-  final total  = deep + rem + light + awake;
+final totals = <double>[];
+final restTotals = <double>[];
+
+for (var entry in valid) {
+  final deep = _parseToMinutes(entry['deepSleep']);
+  final rem   = _parseToMinutes(entry['remSleep']);
+  final light = _parseToMinutes(entry['lightSleep']);
+  final awake = _parseToMinutes(entry['awakeTime']);
+  final total = deep + rem + light + awake;
+
   totals.add(total);
   restTotals.add(deep + rem);
 }
 
-// overall averages
 final avgTotal = totals.isEmpty ? 0.0 : totals.reduce((a, b) => a + b) / totals.length;
 final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) / restTotals.length;
+
+
+    // Compute maxY for chart padding
+    final maxY = widget.buckets.fold<double>(0.0, (prev, entry) {
+      final deep = _parseToMinutes(entry?['deepSleep']);
+      final rem = _parseToMinutes(entry?['remSleep']);
+      final light = _parseToMinutes(entry?['lightSleep']);
+      final awake = _parseToMinutes(entry?['awakeTime']);
+      final total = deep + rem + light + awake;
+      return total > prev ? total : prev;
+    }) + 40.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -149,16 +148,13 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final chartH  = constraints.maxHeight * 0.65;
-              final legendH = constraints.maxHeight * 0.15;
-
+              final chartH = constraints.maxHeight * 0.65;
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 child: Stack(
                   children: [
                     Column(
                       children: [
-                        // Animated BarChart
                         SizedBox(
                           height: chartH,
                           child: TweenAnimationBuilder<double>(
@@ -172,10 +168,9 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
                                   double start = 0.0;
                                   final stacks = rod.rodStackItems.map((item) {
                                     final from = item.fromY * anim;
-                                    final to   = item.toY   * anim;
-                                    final seg  = BarChartRodStackItem(from, to, item.color);
-                                    start = to;
-                                    return seg;
+                                    final toYSeg = item.toY * anim;
+                                    start = toYSeg;
+                                    return BarChartRodStackItem(from, toYSeg, item.color);
                                   }).toList();
                                   return BarChartRodData(
                                     toY: toY > 0 ? toY : 0.1,
@@ -189,11 +184,10 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
 
                               return BarChart(
                                 BarChartData(
-                                  maxY: _calculateMaxY(),
+                                  maxY: maxY,
                                   barGroups: animatedGroups,
                                   alignment: BarChartAlignment.spaceAround,
 
-                                  // Titles
                                   titlesData: FlTitlesData(
                                     leftTitles: AxisTitles(
                                       sideTitles: SideTitles(
@@ -202,103 +196,94 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
                                         reservedSize: 40.0,
                                         getTitlesWidget: (value, _) {
                                           if (value % 60 != 0) return const SizedBox.shrink();
-                                          final h = (value / 60).round();
-                                          return Text('${h}h', style: const TextStyle(fontSize: 10));
-                                        },
-                                      ),
-                                    ),
-                                    bottomTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        getTitlesWidget: (value, _) {
-                                          final idx = value.toInt();
-                                          if (idx < 0 || idx >= past7Days.length) return const SizedBox.shrink();
                                           return Text(
-                                            DateFormat('E').format(past7Days[idx]),
+                                            '${(value / 60).round()}h',
                                             style: const TextStyle(fontSize: 10),
                                           );
                                         },
                                       ),
                                     ),
-                                    topTitles:    AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                    rightTitles:  AxisTitles(sideTitles: SideTitles(showTitles: false)),
+bottomTitles: AxisTitles(
+  sideTitles: SideTitles(
+    showTitles: true,
+    interval: step.toDouble(),
+    getTitlesWidget: (value, _) {
+      final idx = value.toInt();
+      if (idx < 0 || idx >= widget.days.length) return const SizedBox.shrink();
+      if (idx % step != 0) return const SizedBox.shrink();
+      return Text(
+        DateFormat('M/d').format(widget.days[idx]),
+        style: const TextStyle(fontSize: 10),
+      );
+    },
+  ),
+),
+
+
+                                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                                   ),
 
-                                  // Grid
                                   gridData: FlGridData(
                                     show: true,
                                     horizontalInterval: 60.0,
-                                    getDrawingHorizontalLine: (_) =>
-                                        const FlLine(color: Colors.white24, strokeWidth: 0.5),
+                                    getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white24, strokeWidth: 0.5),
                                     drawVerticalLine: false,
                                   ),
 
-extraLinesData: ExtraLinesData(
-  horizontalLines: [
-    // Average restorative sleep (deep+REM)
-    HorizontalLine(
-      y: avgRest,
-      color: Colors.greenAccent.withOpacity(0.7),
-      strokeWidth: 1,
-      dashArray: [4, 4],
-      label: HorizontalLineLabel(
-        show: true,
-        alignment: Alignment.topLeft,               // ← move to left
-        labelResolver: (_) => _formatDuration(avgRest),// ← only “1h59m”
-        style: const TextStyle(color: Colors.greenAccent, fontSize: 10),
-      ),
-    ),
-    // Average total sleep
-    HorizontalLine(
-      y: avgTotal,
-      color: Colors.blueAccent.withOpacity(0.7),
-      strokeWidth: 1,
-      dashArray: [4, 4],
-      label: HorizontalLineLabel(
-        show: true,
-        alignment: Alignment.bottomLeft,               // ← move to left
-        labelResolver: (_) => _formatDuration(avgTotal),// ← only “7h30m”
-        style: const TextStyle(color: Colors.blueAccent, fontSize: 10),
-      ),
-    ),
-  ],
-),
+                                  extraLinesData: ExtraLinesData(
+                                    horizontalLines: [
+                                      HorizontalLine(
+                                        y: avgRest,
+                                        color: Colors.greenAccent.withOpacity(0.7),
+                                        strokeWidth: 1,
+                                        dashArray: [4, 4],
+                                        label: HorizontalLineLabel(
+                                          show: true,
+                                          alignment: Alignment.topLeft,
+                                          labelResolver: (_) => _formatDuration(avgRest),
+                                          style: const TextStyle(color: Colors.greenAccent, fontSize: 10),
+                                        ),
+                                      ),
+                                      HorizontalLine(
+                                        y: avgTotal,
+                                        color: Colors.blueAccent.withOpacity(0.7),
+                                        strokeWidth: 1,
+                                        dashArray: [4, 4],
+                                        label: HorizontalLineLabel(
+                                          show: true,
+                                          alignment: Alignment.topLeft,
+                                          labelResolver: (_) => _formatDuration(avgTotal),
+                                          style: const TextStyle(color: Colors.blueAccent, fontSize: 10),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
 
-
-
-barTouchData: BarTouchData(
-  enabled: true,
-  touchTooltipData: BarTouchTooltipData(getTooltipItem: (_,__,___,____) => null),
-  touchCallback: (event, response) {
-    // grab the tapped stack‐item (if any)
-    final touchedSpot = response?.spot;
-    if (!event.isInterestedForInteractions ||
-        touchedSpot == null ||
-        touchedSpot.touchedStackItem == null) {
-      setState(() {
-        touchedIndex    = null;
-        touchPosition   = null;
-        _touchedSegment = null;
-      });
-      return;
-    }
-
-    // now it’s safe to read from touchedSpot
-    final idx     = touchedSpot.touchedBarGroupIndex;
-    final offset  = touchedSpot.offset;
-    final color   = touchedSpot.touchedStackItem!.color;
-    final segment = (color == const Color(0xFF80CBC4) ||
-                     color == const Color(0xFFCE93D8))
-        ? 'dr'
-        : 'la';
-
-    setState(() {
-      touchedIndex    = idx;
-      touchPosition   = offset;
-      _touchedSegment = segment;
-    });
-  },
-),
+                                  barTouchData: BarTouchData(
+                                    enabled: true,
+                                    touchTooltipData: BarTouchTooltipData(getTooltipItem: (_,__,___,____) => null),
+                                    touchCallback: (event, response) {
+                                      final touchedSpot = response?.spot;
+                                      if (!event.isInterestedForInteractions || touchedSpot == null || touchedSpot.touchedStackItem == null) {
+                                        setState(() {
+                                          touchedIndex = null;
+                                          touchPosition = null;
+                                          _touchedSegment = null;
+                                        });
+                                        return;
+                                      }
+                                      final idx = touchedSpot.touchedBarGroupIndex;
+                                      final offset = touchedSpot.offset;
+                                      final color = touchedSpot.touchedStackItem!.color;
+                                      final segment = (color == const Color(0xFF80CBC4) || color == const Color(0xFFCE93D8)) ? 'dr' : 'la';
+                                      setState(() {
+                                        touchedIndex = idx;
+                                        touchPosition = offset;
+                                        _touchedSegment = segment;
+                                      });
+                                    },
+                                  ),
 
                                   borderData: FlBorderData(show: false),
                                 ),
@@ -309,59 +294,54 @@ barTouchData: BarTouchData(
 
                         const SizedBox(height: 8),
 
-                        // Legend
                         Wrap(
                           alignment: WrapAlignment.center,
                           spacing: 12,
                           runSpacing: 6,
                           children: const [
-                            _LegendItem(label: 'Deep',  color: Color(0xFF80CBC4)),
-                            _LegendItem(label: 'REM',   color: Color(0xFFCE93D8)),
+                            _LegendItem(label: 'Deep', color: Color(0xFF80CBC4)),
+                            _LegendItem(label: 'REM', color: Color(0xFFCE93D8)),
                             _LegendItem(label: 'Light', color: Color(0xFFFFF59D)),
                             _LegendItem(label: 'Awake', color: Color(0xFFE57373)),
-                            _LegendLineItem(label: 'Avg Rest',  color: Colors.greenAccent), // ← new
-                            _LegendLineItem(label: 'Avg Total', color: Colors.blueAccent),  // ← new
+                            _LegendLineItem(label: 'Avg Rest', color: Colors.greenAccent),
+                            _LegendLineItem(label: 'Avg Total', color: Colors.blueAccent),
                           ],
                         ),
                       ],
                     ),
-// Manual overlay tooltip
-if (touchedIndex != null && touchPosition != null && _touchedSegment != null)
-  Positioned(
-    left: touchPosition!.dx - 60,
-    top: (touchPosition!.dy - 140).clamp(16.0, double.infinity),
-    child: Material(
-      color: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.blueGrey.shade700,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Always show date at top
-            Text(
-              DateFormat.MMMd().format(past7Days[touchedIndex!]),
-              style: const TextStyle(color: Colors.white70, fontSize: 10),
-            ),
-            const SizedBox(height: 4),
-            // Show rows based on which segment was touched
-            if (_touchedSegment == 'dr') ...[
-              _buildTooltipRow('Deep', _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['deepSleep']))),
-              _buildTooltipRow('REM',  _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['remSleep']))),
-            ] else ...[
-              _buildTooltipRow('Light', _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['lightSleep']))),
-              _buildTooltipRow('Awake', _formatDuration(_parseToMinutes(_entryAt(touchedIndex!, past7Days, dataByDate)['awakeTime']))),
-            ],
-          ],
-        ),
-      ),
-    ),
-  ),
 
-
+                    if (touchedIndex != null && touchPosition != null && _touchedSegment != null)
+                      Positioned(
+                        left: touchPosition!.dx - 60,
+                        top: (touchPosition!.dy - chartH - 16).clamp(16.0, double.infinity),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blueGrey.shade700,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  DateFormat.MMMd().format(widget.days[touchedIndex!]),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                                ),
+                                const SizedBox(height: 4),
+                                if (_touchedSegment == 'dr') ...[
+                                  _buildTooltipRow('Deep', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['deepSleep']))),
+                                  _buildTooltipRow('REM', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['remSleep']))),
+                                ] else ...[
+                                  _buildTooltipRow('Light', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['lightSleep']))),
+                                  _buildTooltipRow('Awake', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['awakeTime']))),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               );
@@ -373,7 +353,7 @@ if (touchedIndex != null && touchPosition != null && _touchedSegment != null)
   }
 }
 
-/// Square swatch + label for the four sleep stages
+// Legend swatches unchanged
 class _LegendItem extends StatelessWidget {
   final String label;
   final Color color;
@@ -390,7 +370,6 @@ class _LegendItem extends StatelessWidget {
       );
 }
 
-/// Tiny line swatch + label for our average‐lines
 class _LegendLineItem extends StatelessWidget {
   final String label;
   final Color color;
