@@ -605,27 +605,43 @@ StreamBuilder<List<Map<String, dynamic>>>(
                       ? DateFormat.yMMMd().format(ts.toDate())
                       : 'No Date';
 
-                  return SleepEntryCard(
-                    duration:        d['totalDuration']  ?? 'Unknown',
-                    quality:         d['quality']        ?? 'Unknown',
-                    timeToFallAsleep:d['timeToFallAsleep'] ?? '—',
-                    date:            date,
-                    onEdit: () => _editSleepLog(
-                      doc.id,
-                      d['totalDuration']  ?? '',
-                      d['deepSleep']      ?? '',
-                      d['remSleep']       ?? '',
-                      d['awakeTime']      ?? '',
-                      d['lightSleep']     ?? '',
-                      (d['sleepScore'] as num?)?.toInt() ?? 0,
-                      d['timeAsleep']     ?? '',
-                      d['timeAwake']      ?? '',
-                      d['quality']        ?? '',
-                      d['notes']          ?? '',
-                      d['timeInBed']      ?? '',
-                    ),
-                    onDelete: () => _deleteSleepLog(doc.id),
-                  );
+return SleepEntryCard(
+  // header
+  date:      date,
+  duration:  d['totalDuration'] ?? 'Unknown',
+  quality:   d['quality']       ?? 'Unknown',
+
+  // new sleepScore field
+  sleepScore: (d['sleepScore'] as num?)?.toString(),
+
+  // detailed breakdown
+  timeInBed:  d['timeInBed']    ?? '—',
+  deepSleep:  d['deepSleep']    ?? '—',
+  remSleep:   d['remSleep']     ?? '—',
+  lightSleep: d['lightSleep']   ?? '—',
+  awakeTime:  d['awakeTime']    ?? '—',
+
+  // notes
+  notes:      d['notes']        ?? '',
+
+  // actions
+  onEdit: () => _editSleepLog(
+    doc.id,
+    d['totalDuration']  ?? '',
+    d['deepSleep']      ?? '',
+    d['remSleep']       ?? '',
+    d['awakeTime']      ?? '',
+    d['lightSleep']     ?? '',
+    (d['sleepScore'] as num?)?.toInt() ?? 0,
+    d['timeAsleep']     ?? '',
+    d['timeAwake']      ?? '',
+    d['quality']        ?? '',
+    d['notes']          ?? '',
+    d['timeInBed']      ?? '',
+  ),
+  onDelete: () => _deleteSleepLog(doc.id),
+);
+
                 },
               );
             },

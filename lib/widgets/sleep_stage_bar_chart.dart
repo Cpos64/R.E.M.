@@ -19,7 +19,6 @@ class SleepStageBarChart extends StatefulWidget {
 class _SleepStageBarChartState extends State<SleepStageBarChart> {
   int? touchedIndex;
   Offset? touchPosition;
-  String? _touchedSegment; // 'dr' or 'la'
 
   double _parseToMinutes(dynamic duration) {
     if (duration == null) return 0.0;
@@ -36,22 +35,98 @@ String _formatDuration(double minutes) {
 }
 
 
-  Widget _buildTooltipRow(String key, String value) {
-    return RichText(
-      text: TextSpan(
-        children: [
-          TextSpan(
-            text: '$key: ',
-            style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+Widget _buildTooltipRow(String label, String value, Color swatch) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      children: [
+        Container(width: 8, height: 8, color: swatch, margin: const EdgeInsets.only(right: 6)),
+        Text(
+          '$label: $value',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 12,
           ),
-          TextSpan(
-            text: value,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// Builds only the balloon + arrow — we'll call this twice
+Widget _buildTooltipContent() {
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date header
+            Text(
+              DateFormat.MMMd().format(widget.days[touchedIndex!]),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                fontSize: 10,
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            // Total sleep
+            Text(
+              _formatDuration(
+                _parseToMinutes(widget.buckets[touchedIndex!]?['deepSleep']) +
+                _parseToMinutes(widget.buckets[touchedIndex!]?['remSleep']) +
+                _parseToMinutes(widget.buckets[touchedIndex!]?['lightSleep']) +
+                _parseToMinutes(widget.buckets[touchedIndex!]?['awakeTime']),
+              ),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // Stages from top→bottom
+            _buildTooltipRow(
+              'Awake',
+              _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['awakeTime'])),
+              const Color(0xFFE57373),
+            ),
+            _buildTooltipRow(
+              'Light',
+              _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['lightSleep'])),
+              const Color(0xFFFFF59D),
+            ),
+            _buildTooltipRow(
+              'REM',
+              _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['remSleep'])),
+              const Color(0xFFCE93D8),
+            ),
+            _buildTooltipRow(
+              'Deep',
+              _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['deepSleep'])),
+              const Color(0xFF80CBC4),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+      const SizedBox(height: 2),
+      // Pointer arrow
+      CustomPaint(
+        size: const Size(12, 6),
+        painter: _TrianglePainter(color: Theme.of(context).colorScheme.surface),
+      ),
+    ],
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +224,33 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
           child: LayoutBuilder(
             builder: (context, constraints) {
               final chartH = constraints.maxHeight * 0.65;
+// ── REPLACE WITH ──
+// half your bar width:
+const double barHalf = 9.0;
+// width of your tooltip (match _buildTooltipContent()):
+const double tooltipWidth = 120.0;
+
+// separate gaps for left vs. right placement:
+const double gapLeft  = 12.0;
+const double gapRight = 8.0;
+
+// match the horizontal padding around the chart:
+const double horizontalPadding = 12.0;
+// match your left‐axis reservedSize in FlTitlesData:
+const double leftAxisReservedSize = 40.0;
+
+// 1) compute the global bar-center X inside the overall Stack:
+final double barCenterGlobal = 
+    (touchPosition?.dx ?? 0.0)
+    + horizontalPadding
+    + leftAxisReservedSize;
+
+// 2) chartWidth for clamping:
+final double chartWidth = constraints.maxWidth;
+
+// 3) decide which side of the chart we’re on:
+final bool isLeftSide = barCenterGlobal < chartWidth / 2;
+     
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 child: Stack(
@@ -269,7 +371,6 @@ bottomTitles: AxisTitles(
                                         setState(() {
                                           touchedIndex = null;
                                           touchPosition = null;
-                                          _touchedSegment = null;
                                         });
                                         return;
                                       }
@@ -280,7 +381,6 @@ bottomTitles: AxisTitles(
                                       setState(() {
                                         touchedIndex = idx;
                                         touchPosition = offset;
-                                        _touchedSegment = segment;
                                       });
                                     },
                                   ),
@@ -305,43 +405,36 @@ bottomTitles: AxisTitles(
                             _LegendItem(label: 'Awake', color: Color(0xFFE57373)),
                             _LegendLineItem(label: 'Avg Rest', color: Colors.greenAccent),
                             _LegendLineItem(label: 'Avg Total', color: Colors.blueAccent),
+
                           ],
                         ),
                       ],
                     ),
 
-                    if (touchedIndex != null && touchPosition != null && _touchedSegment != null)
-                      Positioned(
-                        left: touchPosition!.dx - 60,
-                        top: (touchPosition!.dy - chartH - 16).clamp(16.0, double.infinity),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blueGrey.shade700,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  DateFormat.MMMd().format(widget.days[touchedIndex!]),
-                                  style: const TextStyle(color: Colors.white70, fontSize: 10),
-                                ),
-                                const SizedBox(height: 4),
-                                if (_touchedSegment == 'dr') ...[
-                                  _buildTooltipRow('Deep', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['deepSleep']))),
-                                  _buildTooltipRow('REM', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['remSleep']))),
-                                ] else ...[
-                                  _buildTooltipRow('Light', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['lightSleep']))),
-                                  _buildTooltipRow('Awake', _formatDuration(_parseToMinutes(widget.buckets[touchedIndex!]?['awakeTime']))),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+// ── Single flipping‐tooltip Positioned ──
+if (touchedIndex != null && touchPosition != null)
+  Positioned(
+    left: (() {
+      // calculate x using the global center and side-specific gaps
+      final double xPos = isLeftSide
+          // to the right of the bar
+          ? barCenterGlobal + barHalf + gapLeft
+          // to the left of the bar
+          : barCenterGlobal - tooltipWidth - barHalf - gapRight;
+      return xPos.clamp(
+        8.0,
+        chartWidth - tooltipWidth - 8.0,
+      );
+    })(),
+    top: (touchPosition!.dy - chartH - 16)
+           .clamp(16.0, double.infinity),
+    child: _buildTooltipContent(),
+  ),
+
+
+// ──────────────────────
+
+
                   ],
                 ),
               );
@@ -352,6 +445,8 @@ bottomTitles: AxisTitles(
     );
   }
 }
+
+
 
 // Legend swatches unchanged
 class _LegendItem extends StatelessWidget {
@@ -375,6 +470,8 @@ class _LegendLineItem extends StatelessWidget {
   final Color color;
   const _LegendLineItem({required this.label, required this.color});
 
+  
+
   @override
   Widget build(BuildContext context) => Row(
         mainAxisSize: MainAxisSize.min,
@@ -384,4 +481,23 @@ class _LegendLineItem extends StatelessWidget {
           Text(label, style: const TextStyle(fontSize: 12)),
         ],
       );
+}
+/// Paints a small downward triangle for the tooltip pointer
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+  _TrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }
