@@ -3,11 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'firestore_service.dart';
 import 'widgets/sleep_score_chart.dart';
-import 'widgets/sleep_stage_bar_chart.dart';
 import 'widgets/sleep_chart_pager.dart';
 import 'widgets/sleep_entry_card.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+
+/// Converts a "XhYm" string into total minutes.
+int _parseToMinutes(String input) {
+  final hours = int.tryParse(RegExp(r'(\d+)h').firstMatch(input)?.group(1) ?? '0') ?? 0;
+  final mins  = int.tryParse(RegExp(r'(\d+)m').firstMatch(input)?.group(1) ?? '0') ?? 0;
+  return hours * 60 + mins;
+}
+
 
 class SleepLogScreen extends StatefulWidget {
   const SleepLogScreen({super.key});
@@ -56,6 +63,22 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   _isFirstLoad = false;
 }
   }
+
+    @override
+  void dispose() {
+    _durationController.dispose();
+    _deepController.dispose();
+    _remController.dispose();
+    _awakeController.dispose();
+    _asleepController.dispose();
+    _wakeController.dispose();
+    _qualityController.dispose();
+    _notesController.dispose();
+    _dateController.dispose();
+    _inBedController.dispose();
+    super.dispose();
+  }
+
 
   void _loadSleepLogs() {
     setState(() {
@@ -262,12 +285,6 @@ Future<void> _showUnifiedTimePicker({
   );
 }
 
-int _parseToMinutes(String input) {
-  final hours = RegExp(r'(\d+)h').firstMatch(input)?.group(1);
-  final minutes = RegExp(r'(\d+)m').firstMatch(input)?.group(1);
-  return (int.tryParse(hours ?? '0') ?? 0) * 60 + (int.tryParse(minutes ?? '0') ?? 0);
-}
-
 void _showAddSleepDialog() {
   showDialog(
     context: context,
@@ -319,9 +336,14 @@ void _showAddSleepDialog() {
 
               Navigator.of(ctx).pop();
               _loadSleepLogs();
-            } catch (e) {
+            } catch (e, st) {
+              // Log to console for debugging
+              print('❌ Error saving sleep log: $e');
+              print(st);
+
+              // Show a user‐friendly SnackBar
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error saving sleep log: \$e')),
+                SnackBar(content: Text('Error saving sleep log: $e')),
               );
             }
           },
@@ -410,20 +432,17 @@ Future<void> _editSleepLog(
   String currentDeep,
   String currentRem,
   String currentAwake,
-  String currentLight,
-  int currentScore,
   String currentAsleep,
   String currentAwakeTime,
   String currentQuality,
   String? currentNotes,
   String currentInBed,
+  DateTime currentDate,
 ) async {
   final TextEditingController editTotalController = TextEditingController(text: currentTotal);
   final TextEditingController editDeepController = TextEditingController(text: currentDeep);
   final TextEditingController editRemController = TextEditingController(text: currentRem);
   final TextEditingController editAwakeController = TextEditingController(text: currentAwake);
-  final TextEditingController editLightController = TextEditingController(text: currentLight);
-  final TextEditingController editScoreController = TextEditingController(text: currentScore.toString());
   final TextEditingController editQualityController = TextEditingController(text: currentQuality);
   final TextEditingController editNotesController = TextEditingController(text: currentNotes ?? "");
 
@@ -474,15 +493,6 @@ Future<void> _editSleepLog(
               );
             }),
             TextField(
-              controller: editLightController,
-              decoration: const InputDecoration(labelText: 'Light Sleep'),
-            ),
-            TextField(
-              controller: editScoreController,
-              decoration: const InputDecoration(labelText: 'Sleep Score (0–100)'),
-              keyboardType: TextInputType.number,
-            ),
-            TextField(
               controller: editQualityController,
               decoration: const InputDecoration(labelText: 'Quality'),
             ),
@@ -502,19 +512,20 @@ Future<void> _editSleepLog(
         TextButton(
           onPressed: () async {
             try {
-              await _firestoreService.updateSleepLog(
-                docId,
-                editTotalController.text.trim(),
-                editDeepController.text.trim(),
-                editRemController.text.trim(),
-                editLightController.text.trim(),
-                editAwakeController.text.trim(),
-                int.tryParse(editScoreController.text.trim()) ?? 0,
-                editAsleepController.text.trim(),
-                editAwakeTimeController.text.trim(),
-                editQualityController.text.trim(),
-                editNotesController.text.trim(),
-              );
+            await _firestoreService.updateSleepLogAuto(
+              docId:        docId,
+              totalDuration: editTotalController.text.trim(),
+              deepSleep:     editDeepController.text.trim(),
+              remSleep:      editRemController.text.trim(),
+              awakeTime:     editAwakeController.text.trim(),
+              timeInBed:     editInBedController.text.trim(),
+              timeAsleep:    editAsleepController.text.trim(),
+              timeAwake:     editAwakeTimeController.text.trim(),
+              quality:       editQualityController.text.trim(),
+              notes:         editNotesController.text.trim(),
+              date:          currentDate, 
+            );
+
               Navigator.of(context).pop();
               _loadSleepLogs();
             } catch (e) {
@@ -634,20 +645,22 @@ return ListView.builder(
       lightSleep:   d['lightSleep']    ?? '—',
       awakeTime:    d['awakeTime']     ?? '—',
       notes:        d['notes']         ?? '',
-      onEdit:       () => _editSleepLog(
-                       doc.id,
-                       d['totalDuration'] ?? '',
-                       d['deepSleep']     ?? '',
-                       d['remSleep']      ?? '',
-                       d['awakeTime']     ?? '',
-                       d['lightSleep']    ?? '',
-                       (d['sleepScore'] as num?)?.toInt() ?? 0,
-                       d['timeAsleep']    ?? '',
-                       d['timeAwake']     ?? '',
-                       d['quality']       ?? '',
-                       d['notes']         ?? '',
-                       d['timeInBed']     ?? '',
-                     ),
+      onEdit: () {
+        final ts = (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+        _editSleepLog(
+          doc.id,
+          d['totalDuration']  ?? '',
+          d['deepSleep']      ?? '',
+          d['remSleep']       ?? '',
+          d['awakeTime']      ?? '',
+          d['timeAsleep']     ?? '',
+          d['timeAwake']      ?? '',
+          d['quality']        ?? '',
+          d['notes']          ?? '',
+          d['timeInBed']      ?? '',
+          ts,                         // ← pass the DateTime here
+        );
+      },
       onDelete:     () => _deleteSleepLog(doc.id),
     );
   },
