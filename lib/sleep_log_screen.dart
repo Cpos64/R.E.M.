@@ -639,12 +639,6 @@ return ListView.builder(
       duration:     d['totalDuration'] ?? 'Unknown',
       quality:      d['quality']       ?? 'Unknown',
       sleepScore:   (d['sleepScore']   as num?)?.toString(),
-      timeInBed:    d['timeInBed']     ?? '—',
-      deepSleep:    d['deepSleep']     ?? '—',
-      remSleep:     d['remSleep']      ?? '—',
-      lightSleep:   d['lightSleep']    ?? '—',
-      awakeTime:    d['awakeTime']     ?? '—',
-      notes:        d['notes']         ?? '',
       onEdit: () {
         final ts = (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
         _editSleepLog(
