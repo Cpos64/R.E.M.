@@ -31,8 +31,8 @@ class SleepInputField {
 class _SleepLogScreenState extends State<SleepLogScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   late Future<List<QueryDocumentSnapshot>> _sleepLogsFuture;
-  List<Map<String, dynamic>> sleepChartData = [];
   bool _isFirstLoad = true;
+  int _selectedWindow = 7;
 
   final _durationController = TextEditingController();
   final _deepController = TextEditingController();
@@ -52,10 +52,9 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_isFirstLoad) {
-      _loadSleepLogs();
-      _loadChartData();
-      _isFirstLoad = false;
-    }
+  _loadSleepLogs();
+  _isFirstLoad = false;
+}
   }
 
   void _loadSleepLogs() {
@@ -64,12 +63,6 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     });
   }
 
-  void _loadChartData() async {
-    final chartData = await _firestoreService.getLast7SleepLogsForChart();
-    setState(() {
-      sleepChartData = chartData;
-    });
-  }
 
   void _navigateToInput(List<SleepInputField> inputs, int index) {
   final input = inputs[index];
@@ -326,7 +319,6 @@ void _showAddSleepDialog() {
 
               Navigator.of(ctx).pop();
               _loadSleepLogs();
-              _loadChartData();
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Error saving sleep log: \$e')),
@@ -543,7 +535,7 @@ Future<void> _editSleepLog(
     _loadSleepLogs();
   }
 
- @override
+@override
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(title: const Text('Sleep Log')),
@@ -551,104 +543,122 @@ Widget build(BuildContext context) {
       onPressed: _showAddSleepDialog,
       child: const Icon(Icons.add),
     ),
-    body: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+        body: Column(
       children: [
-        // ───────── Chart Pager ─────────
-StreamBuilder<List<Map<String, dynamic>>>(
-  stream: _firestoreService.watchLast7SleepLogsForChart(),
-  builder: (context, snapshot) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return const SizedBox(
-        height: 400,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    final data = snapshot.data ?? [];
-    if (data.isEmpty) {
-      return const SizedBox(
-        height: 400,
-        child: Center(child: Text('No sleep data yet.')),
-      );
-    }
-    return SizedBox(
-      height: 400,
-      child: SleepChartPager(sleepData: data),
-    );
-  },
-),
-
-        // ───────── Logs List ─────────
+        // ── Charts + Toggle (fills top half) ──
         Expanded(
+          flex: 3,
+          child: Column(
+            children: [
+              // 1) Real-time stream → chart
+Expanded(
+  child: StreamBuilder<List<Map<String, dynamic>>>(
+    stream: _firestoreService.watchLogsForChart(_selectedWindow),
+    builder: (context, snapshot) {
+      // 1) always log what’s coming back:
+      print('▶️ chart snapshot.hasData=${snapshot.hasData} '
+            'length=${snapshot.data?.length} '
+            'err=${snapshot.error} '
+            'window=$_selectedWindow');
+
+      // 2) if there's an error from Firestore at any point, show that:
+      if (snapshot.hasError) {
+        return Center(child: Text('Error loading chart: ${snapshot.error}'));
+      }
+
+      // 3) if we still haven’t gotten our first data event, show a spinner
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      // 4) now we know data != null
+      final data = snapshot.data!;
+
+      // 5) if it’s an empty list, show “no data”
+      if (data.isEmpty) {
+        return const Center(child: Text('No sleep data yet.'));
+      }
+
+      // 6) otherwise hand it off to your pager
+      return SleepChartPager(
+        sleepData: data,
+        selectedWindow: _selectedWindow,
+        onWindowChanged: (newWindow) {
+          setState(() => _selectedWindow = newWindow);
+        },
+      );
+    },
+  ),
+),
+            ],
+          ),
+        ),
+
+        // ── Logs list (fills bottom half) ──
+        Expanded(
+          flex: 2,
           child: FutureBuilder<List<QueryDocumentSnapshot>>(
             future: _sleepLogsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+            builder: (ctx, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
               }
-
-              final logs = snapshot.data;
-              if (logs == null || logs.isEmpty) {
+              if (snap.hasError) {
+                return Center(child: Text('Error: ${snap.error}'));
+              }
+              final logs = snap.data ?? [];
+              if (logs.isEmpty) {
                 return const Center(child: Text('No sleep logs saved yet.'));
               }
+return ListView.builder(
+  padding: const EdgeInsets.all(16),
+  itemCount: logs.length,
+  itemBuilder: (ctx, i) {
+    // 1️⃣ grab the snapshot…
+    final doc = logs[i];
+    // 2️⃣ …and then its data map
+    final d = doc.data() as Map<String, dynamic>;
+    final ts = d['timestamp'] as Timestamp?;
+    final date = ts == null
+        ? 'No Date'
+        : DateFormat.yMMMd().format(ts.toDate());
 
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: logs.length,
-                itemBuilder: (ctx, i) {
-                  final doc = logs[i];
-                  final d   = doc.data() as Map<String, dynamic>;
-                  final ts  = d['timestamp'] as Timestamp?;
-                  final date = ts != null
-                      ? DateFormat.yMMMd().format(ts.toDate())
-                      : 'No Date';
-
-return SleepEntryCard(
-  // header
-  date:      date,
-  duration:  d['totalDuration'] ?? 'Unknown',
-  quality:   d['quality']       ?? 'Unknown',
-
-  // new sleepScore field
-  sleepScore: (d['sleepScore'] as num?)?.toString(),
-
-  // detailed breakdown
-  timeInBed:  d['timeInBed']    ?? '—',
-  deepSleep:  d['deepSleep']    ?? '—',
-  remSleep:   d['remSleep']     ?? '—',
-  lightSleep: d['lightSleep']   ?? '—',
-  awakeTime:  d['awakeTime']    ?? '—',
-
-  // notes
-  notes:      d['notes']        ?? '',
-
-  // actions
-  onEdit: () => _editSleepLog(
-    doc.id,
-    d['totalDuration']  ?? '',
-    d['deepSleep']      ?? '',
-    d['remSleep']       ?? '',
-    d['awakeTime']      ?? '',
-    d['lightSleep']     ?? '',
-    (d['sleepScore'] as num?)?.toInt() ?? 0,
-    d['timeAsleep']     ?? '',
-    d['timeAwake']      ?? '',
-    d['quality']        ?? '',
-    d['notes']          ?? '',
-    d['timeInBed']      ?? '',
-  ),
-  onDelete: () => _deleteSleepLog(doc.id),
+    return SleepEntryCard(
+      date:         date,
+      duration:     d['totalDuration'] ?? 'Unknown',
+      quality:      d['quality']       ?? 'Unknown',
+      sleepScore:   (d['sleepScore']   as num?)?.toString(),
+      timeInBed:    d['timeInBed']     ?? '—',
+      deepSleep:    d['deepSleep']     ?? '—',
+      remSleep:     d['remSleep']      ?? '—',
+      lightSleep:   d['lightSleep']    ?? '—',
+      awakeTime:    d['awakeTime']     ?? '—',
+      notes:        d['notes']         ?? '',
+      onEdit:       () => _editSleepLog(
+                       doc.id,
+                       d['totalDuration'] ?? '',
+                       d['deepSleep']     ?? '',
+                       d['remSleep']      ?? '',
+                       d['awakeTime']     ?? '',
+                       d['lightSleep']    ?? '',
+                       (d['sleepScore'] as num?)?.toInt() ?? 0,
+                       d['timeAsleep']    ?? '',
+                       d['timeAwake']     ?? '',
+                       d['quality']       ?? '',
+                       d['notes']         ?? '',
+                       d['timeInBed']     ?? '',
+                     ),
+      onDelete:     () => _deleteSleepLog(doc.id),
+    );
+  },
 );
 
-                },
-              );
             },
           ),
         ),
       ],
     ),
+
   );
 }
 }
