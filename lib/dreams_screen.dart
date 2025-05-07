@@ -1,251 +1,237 @@
-import 'package:flutter/material.dart';
+// lib/screens/dreams_screen.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:rem/widgets/dream_entry_card.dart';
+import '../firestore_service.dart';
+import '../widgets/dream_entry_card.dart';
 
+/// A reusable form widget for adding/editing dreams.
+class DreamForm extends StatelessWidget {
+  final TextEditingController titleCtl;
+  final TextEditingController descCtl;
+  final VoidCallback onSubmit;
 
-class DreamsScreen extends StatefulWidget {
-  const DreamsScreen({super.key});
+  const DreamForm({
+    required this.titleCtl,
+    required this.descCtl,
+    required this.onSubmit,
+    super.key,
+  });
 
   @override
-  _DreamsScreenState createState() => _DreamsScreenState();
-}
-
-class _DreamsScreenState extends State<DreamsScreen> {
-  final FirestoreService _firestoreService = FirestoreService();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _editTitleController = TextEditingController();
-  final TextEditingController _editDescriptionController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-
-
-void _showAddDreamDialog() {
-  _titleController.clear();
-  _descriptionController.clear();
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (context) => SingleChildScrollView(
+  Widget build(BuildContext context) {
+    return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        top: 20,
         left: 20,
         right: 20,
+        top: 16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
-            controller: _titleController,
-            autofocus: true,
-            decoration: InputDecoration(labelText: 'Title'),
+            controller: titleCtl,
+            decoration: const InputDecoration(labelText: 'Title'),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 12),
           TextField(
-            controller: _descriptionController,
-            decoration: InputDecoration(labelText: 'Description'),
-            maxLines: 5,
+            controller: descCtl,
+            decoration: const InputDecoration(labelText: 'Description'),
+            maxLines: 4,
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () async {
-              await _saveDream();
-              Navigator.of(context).pop();
-              _scrollToBottom();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Dream saved!')),
-              );
-            },
-            child: Text('Save Dream'),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-
-  late Future<List<QueryDocumentSnapshot>> _dreamsFuture;
-  String _editingDocId = '';
-  bool _isEditing = false;
-  String _filterKeyword = '';
-  bool _isFirstLoad = true;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_isFirstLoad) {
-      _loadDreams();
-      _isFirstLoad = false;
-    }
-  }
-
-  void _scrollToBottom() {
-  Future.delayed(Duration(milliseconds: 200), () {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  });
-}
-
-
-  void _loadDreams() {
-    setState(() {
-      _dreamsFuture = _firestoreService.getDreams();
-    });
-  }
-
-  Future<void> _saveDream() async {
-    final title = _titleController.text.trim();
-    final description = _descriptionController.text.trim();
-
-    if (title.isNotEmpty && description.isNotEmpty) {
-      if (_isEditing) {
-        await _firestoreService.updateDream(_editingDocId, title, description);
-        _isEditing = false;
-        _editingDocId = '';
-      } else {
-        await _firestoreService.saveDream(title, description);
-      }
-
-      _titleController.clear();
-      _descriptionController.clear();
-      _loadDreams();
-    }
-  }
-
-  Future<void> _editDream(String docId, String currentTitle, String currentDescription) async {
-    _editTitleController.text = currentTitle;
-    _editDescriptionController.text = currentDescription;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit Dream'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _editTitleController,
-              decoration: InputDecoration(labelText: 'Title'),
-            ),
-            TextField(
-              controller: _editDescriptionController,
-              decoration: InputDecoration(labelText: 'Description'),
-              maxLines: 5,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final newTitle = _editTitleController.text.trim();
-              final newDescription = _editDescriptionController.text.trim();
-
-              await _firestoreService.updateDream(docId, newTitle, newDescription);
-              Navigator.of(context).pop();
-              _loadDreams();
-            },
-            child: Text('Save'),
+            onPressed: onSubmit,
+            child: const Text('Save'),
           ),
         ],
       ),
     );
   }
+}
 
-  Future<void> _deleteDream(String docId) async {
-    await _firestoreService.deleteDream(docId);
-    _loadDreams();
+class DreamsScreen extends StatefulWidget {
+  const DreamsScreen({super.key});
+
+  @override
+  State<DreamsScreen> createState() => _DreamsScreenState();
+}
+
+class _DreamsScreenState extends State<DreamsScreen> {
+  final _searchController = TextEditingController();
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  final _scrollController = ScrollController();
+  String _filterKeyword = '';
+
+  Stream<QuerySnapshot> get _dreamsStream {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return FirebaseFirestore.instance
+        .collection('dreams')
+        .where('userId', isEqualTo: uid)
+        .orderBy('timestamp', descending: true)
+        .snapshots();
   }
 
-  List<QueryDocumentSnapshot> _filterDreams(List<QueryDocumentSnapshot> dreams) {
-    if (_filterKeyword.isEmpty) return dreams;
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _titleController.dispose();
+    _descController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    return dreams.where((doc) {
-      final title = doc['title'].toString().toLowerCase();
-      final description = doc['description'].toString().toLowerCase();
-      final keyword = _filterKeyword.toLowerCase();
-
-      return title.contains(keyword) || description.contains(keyword);
+  List<QueryDocumentSnapshot> _applyFilter(List<QueryDocumentSnapshot> docs) {
+    if (_filterKeyword.isEmpty) return docs;
+    final kw = _filterKeyword.toLowerCase();
+    return docs.where((d) {
+      final t = (d['title'] as String).toLowerCase();
+      final b = (d['description'] as String).toLowerCase();
+      return t.contains(kw) || b.contains(kw);
     }).toList();
+  }
+
+  void _showAddDream() {
+    _titleController.clear();
+    _descController.clear();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => DreamForm(
+        titleCtl: _titleController,
+        descCtl: _descController,
+        onSubmit: () async {
+          final t = _titleController.text.trim();
+          final d = _descController.text.trim();
+          if (t.isNotEmpty && d.isNotEmpty) {
+            await FirestoreService().saveDream(t, d);
+            Navigator.of(context).pop();
+            // scroll to bottom
+            Future.delayed(const Duration(milliseconds: 200), () {
+              if (_scrollController.hasClients) {
+                _scrollController.animateTo(
+                  _scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Dream saved!')),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  void _editDream(QueryDocumentSnapshot doc) {
+    _titleController.text = doc['title'];
+    _descController.text = doc['description'];
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Dream'),
+        content: DreamForm(
+          titleCtl: _titleController,
+          descCtl: _descController,
+          onSubmit: () async {
+            final t = _titleController.text.trim();
+            final d = _descController.text.trim();
+            if (t.isNotEmpty && d.isNotEmpty) {
+              await FirestoreService().updateDream(doc.id, t, d);
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteDream(String id) async {
+    await FirestoreService().deleteDream(id);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Dream deleted')));
+  }
+
+  Widget _buildSearchBar() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search),
+          hintText: 'Search dreams',
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(12),
+          suffixIcon: _filterKeyword.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _filterKeyword = '');
+                  },
+                ),
+        ),
+        onChanged: (v) => setState(() => _filterKeyword = v),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: const Text('Dream Journal')),
       floatingActionButton: FloatingActionButton(
-  onPressed: _showAddDreamDialog,
-  child: Icon(Icons.add),
-),
-      appBar: AppBar(title: Text('Dream Journal')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        onPressed: _showAddDream,
+        child: const Icon(Icons.add),
+      ),
+      body: SafeArea(
         child: Column(
           children: [
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Search Dreams',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _filterKeyword = value;
-                });
-              },
-            ),
-            SizedBox(height: 16),
+            _buildSearchBar(),
             Expanded(
-              child: FutureBuilder<List<QueryDocumentSnapshot>>(
-                future: _dreamsFuture,
-                builder: (context, snapshot) {
-                  print('Dreams snapshot: ${snapshot.connectionState}');
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _dreamsStream,
+                builder: (ctx, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
                   }
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                  if (snap.hasError) {
+                    return Center(child: Text('Error: ${snap.error}'));
                   }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(child: Text('No dreams saved yet.'));
+                  final docs = snap.data!.docs;
+                  if (docs.isEmpty) {
+                    return const Center(child: Text('No dreams yet.'));
                   }
-
-                  final dreams = _filterDreams(snapshot.data!);
-                  print('Loaded ${dreams.length} dreams');
-
-                  return ListView.builder(
-                    itemCount: dreams.length,
+                  final filtered = _applyFilter(docs);
+                  return ListView.separated(
                     controller: _scrollController,
-                    itemBuilder: (context, index) {
-                      final dream = dreams[index];
-                      final docId = dream.id;
-                      final title = dream['title'];
-                      final description = dream['description'];
-                      final timestamp = (dream.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
-                      final formattedDate = timestamp != null
-                          ? DateFormat.yMMMd().format(timestamp.toDate())
-                          : 'No Date';
-
-                                            return DreamEntryCard(
-                        title: '$title • $formattedDate',
-                        description: description,
-                        onEdit: () => _editDream(docId, title, description),
-                        onDelete: () => _deleteDream(docId),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final doc = filtered[i];
+                      final ts = (doc['timestamp'] as Timestamp).toDate();
+                      final date = DateFormat.yMMMd().format(ts);
+                      return Dismissible(
+                        key: Key(doc.id),
+                        background: Container(color: Colors.red),
+                        direction: DismissDirection.endToStart,
+                        onDismissed: (_) => _deleteDream(doc.id),
+                        child: DreamEntryCard(
+                          title: '${doc['title']} • $date',
+                          description: doc['description'],
+                          onEdit: () => _editDream(doc),
+                          onDelete: () => _deleteDream(doc.id),
+                        ),
                       );
                     },
                   );
