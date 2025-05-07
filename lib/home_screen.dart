@@ -20,11 +20,9 @@ class HomeScreen extends StatelessWidget {
     await prefs.remove('password');
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Logged out successfully')),
+      const SnackBar(content: Text('Logged out successfully')),
     );
-
-    // 🔄 Small delay to let authStateChanges trigger rebuild in main.dart
-    await Future.delayed(Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 500));
   }
 
   @override
@@ -33,44 +31,60 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('R.E.M. Home'),
         actions: [
-          Row(
-            children: [
-              Icon(Icons.dark_mode),
-              Switch(
-                value: isDarkTheme,
-                onChanged: toggleTheme,
-              ),
-              IconButton(
-                icon: Icon(Icons.logout),
-                tooltip: 'Logout',
-                onPressed: () => _logout(context),
-              ),
-            ],
+          IconButton(
+            icon: Icon(isDarkTheme ? Icons.nights_stay : Icons.wb_sunny),
+            tooltip: 'Toggle theme',
+            onPressed: () => toggleTheme(!isDarkTheme),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () => _logout(context),
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Text(
+            const Text(
               'Welcome to R.E.M!',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/dreams');
-              },
-              child: Text('Go to Dream Journal'),
+            const SizedBox(height: 24),
+            // Version A: full-width buttons
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.book),
+                label: const Text('Dream Journal'),
+                onPressed: () => Navigator.pushNamed(context, '/dreams'),
+              ),
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/sleep_logs');
-              },
-              child: Text('Go to Sleep Logs'),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.bedtime),
+                label: const Text('Sleep Logs'),
+                onPressed: () => Navigator.pushNamed(context, '/sleep_logs'),
+              ),
             ),
+
+            const Divider(height: 40),
+
+            // Version B: ListTiles (alternative)
+            // ListTile(
+            //   leading: const Icon(Icons.book),
+            //   title: const Text('Dream Journal'),
+            //   onTap: () => Navigator.pushNamed(context, '/dreams'),
+            // ),
+            // ListTile(
+            //   leading: const Icon(Icons.bedtime),
+            //   title: const Text('Sleep Logs'),
+            //   onTap: () => Navigator.pushNamed(context, '/sleep_logs'),
+            // ),
           ],
         ),
       ),
