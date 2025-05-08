@@ -378,9 +378,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     final editDeepController      = TextEditingController(text: currentDeep);
     final editRemController       = TextEditingController(text: currentRem);
     final editAwakeController     = TextEditingController(text: currentAwake);
-    final editInBedController     = TextEditingController(
-      text: DateFormat.jm().format(DateTime.tryParse(currentTimeInBed) ?? DateTime.now()),
-    );
+    final editInBedController     = TextEditingController(text: currentTimeInBed);
     final editAsleepController    = TextEditingController(text: currentTimeAsleep);
     final editAwakeTimeController = TextEditingController(text: currentTimeAwake);
     final editQualityController   = TextEditingController(text: currentQuality);
