@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'; // for debugPrint
 import 'package:intl/intl.dart';
 import 'dart:math';
+import 'package:dart_sentiment/dart_sentiment.dart';
 
 /// Parses "h:mm a" into a DateTime, or returns `now` on failure.
 DateTime _safeParseTime(String txt) {
@@ -23,11 +25,19 @@ int parseToMinutes(String input) {
   return hours * 60 + mins;
 }
 
+final _sentiment = Sentiment();
+
+double _analyzeSentiment(String text) {
+  final res = _sentiment.analysis(text, emoji: true);
+  // `res['score']` is an int; convert to double
+  return (res['score'] as num).toDouble();
+}
+
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth      _auth      = FirebaseAuth.instance;
 
-  // -------- DREAMS --------
+  // ───────── DREAMS ─────────────────────────────────────────────────────────
 
   Future<List<QueryDocumentSnapshot>> getDreams() async {
     final user = _auth.currentUser;
@@ -40,22 +50,47 @@ class FirestoreService {
     return snapshot.docs;
   }
 
-  Future<void> saveDream(String title, String description) async {
+  /// Add a dream entry with sentimentScore and genre.
+  /// Make sure you’ve created a composite index on (userId, genre, timestamp)
+  /// in the Firestore console for performant queries.
+  Future<void> saveDream(String title, String description, String genre) async {
     final user = _auth.currentUser;
     if (user == null) return;
-    await _firestore.collection('dreams').add({
-      'title':       title,
-      'description': description,
-      'timestamp':   Timestamp.now(),
-      'userId':      user.uid,
-    });
+
+    final safeGenre = genre.isNotEmpty ? genre : 'Other';
+    final sentimentScore = _analyzeSentiment(description);
+
+    try {
+      await _firestore.collection('dreams').add({
+        'title':          title,
+        'description':    description,
+        'sentimentScore': sentimentScore,
+        'genre':          safeGenre,
+        'timestamp':      Timestamp.now(),
+        'userId':         user.uid,
+      });
+    } catch (e, st) {
+      debugPrint('Error saving dream: $e\n$st');
+      rethrow;
+    }
   }
 
-  Future<void> updateDream(String docId, String newTitle, String newDescription) async {
-    await _firestore.collection('dreams').doc(docId).update({
-      'title':       newTitle,
-      'description': newDescription,
-    });
+  /// Update a dream entry, recomputing sentimentScore if the description changed.
+  Future<void> updateDream(String docId, String newTitle, String newDescription, String genre) async {
+    final safeGenre     = genre.isNotEmpty ? genre : 'Other';
+    final sentimentScore = _analyzeSentiment(newDescription);
+
+    try {
+      await _firestore.collection('dreams').doc(docId).update({
+        'title':          newTitle,
+        'description':    newDescription,
+        'sentimentScore': sentimentScore,
+        'genre':          safeGenre,
+      });
+    } catch (e, st) {
+      debugPrint('Error updating dream: $e\n$st');
+      rethrow;
+    }
   }
 
   Future<void> deleteDream(String docId) async {

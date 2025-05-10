@@ -1,5 +1,3 @@
-// lib/screens/dreams_screen.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -7,18 +5,35 @@ import 'package:intl/intl.dart';
 import '../firestore_service.dart';
 import '../widgets/dream_entry_card.dart';
 
-/// A reusable form widget for adding/editing dreams.
-class DreamForm extends StatelessWidget {
+/// A reusable form widget for adding/editing dreams with Genre selection.
+class DreamForm extends StatefulWidget {
   final TextEditingController titleCtl;
   final TextEditingController descCtl;
-  final VoidCallback onSubmit;
+  final String? initialGenre;
+  final List<String> genres;
+  final void Function(String genre) onSubmit;
 
   const DreamForm({
+    Key? key,
     required this.titleCtl,
     required this.descCtl,
+    this.initialGenre,
+    required this.genres,
     required this.onSubmit,
-    super.key,
-  });
+  }) : super(key: key);
+
+  @override
+  _DreamFormState createState() => _DreamFormState();
+}
+
+class _DreamFormState extends State<DreamForm> {
+  String? _selectedGenre;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedGenre = widget.initialGenre;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,19 +48,43 @@ class DreamForm extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
-            controller: titleCtl,
+            controller: widget.titleCtl,
             decoration: const InputDecoration(labelText: 'Title'),
           ),
           const SizedBox(height: 12),
           TextField(
-            controller: descCtl,
+            controller: widget.descCtl,
             decoration: const InputDecoration(labelText: 'Description'),
             maxLines: 4,
           ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onSubmit,
-            child: const Text('Save'),
+          const SizedBox(height: 12),
+          // Genre dropdown
+          DropdownButtonFormField<String>(
+            value: _selectedGenre,
+            items: widget.genres.map((g) => DropdownMenuItem(
+              value: g,
+              child: Text(g),
+            )).toList(),
+            onChanged: (val) => setState(() => _selectedGenre = val),
+            decoration: const InputDecoration(
+              labelText: 'Genre',
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: _selectedGenre == null
+                    ? null
+                    : () => widget.onSubmit(_selectedGenre!),
+                child: const Text('Save'),
+              ),
+            ],
           ),
         ],
       ),
@@ -54,7 +93,7 @@ class DreamForm extends StatelessWidget {
 }
 
 class DreamsScreen extends StatefulWidget {
-  const DreamsScreen({super.key});
+  const DreamsScreen({Key? key}) : super(key: key);
 
   @override
   State<DreamsScreen> createState() => _DreamsScreenState();
@@ -67,13 +106,18 @@ class _DreamsScreenState extends State<DreamsScreen> {
   final _scrollController = ScrollController();
   String _filterKeyword = '';
 
+  static const _genreOptions = [
+    'Nightmare','Lucid','Adventure','Recurring','Emotional',
+    'Weird','Romantic','Meaningful','Problem-Solving', 'Tragedy', 'Other'
+  ];
+
   Stream<QuerySnapshot> get _dreamsStream {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     return FirebaseFirestore.instance
-        .collection('dreams')
-        .where('userId', isEqualTo: uid)
-        .orderBy('timestamp', descending: true)
-        .snapshots();
+      .collection('dreams')
+      .where('userId', isEqualTo: uid)
+      .orderBy('timestamp', descending: true)
+      .snapshots();
   }
 
   @override
@@ -89,65 +133,89 @@ class _DreamsScreenState extends State<DreamsScreen> {
     if (_filterKeyword.isEmpty) return docs;
     final kw = _filterKeyword.toLowerCase();
     return docs.where((d) {
-      final t = (d['title'] as String).toLowerCase();
-      final b = (d['description'] as String).toLowerCase();
-      return t.contains(kw) || b.contains(kw);
+    // 1️⃣ pull out the raw data map
+    final data  = d.data() as Map<String,dynamic>;
+
+    // 2️⃣ guard against missing genre
+    final genre = (data['genre'] as String?)?.toLowerCase() ?? '';
+
+    // 3️⃣ now lookup title/description off the same map
+    final t = (data['title']       as String).toLowerCase();
+    final b = (data['description'] as String).toLowerCase();
+      return t.contains(kw) || b.contains(kw) || genre.contains(kw);
     }).toList();
   }
 
-  void _showAddDream() {
-    _titleController.clear();
-    _descController.clear();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => DreamForm(
-        titleCtl: _titleController,
-        descCtl: _descController,
-        onSubmit: () async {
-          final t = _titleController.text.trim();
-          final d = _descController.text.trim();
-          if (t.isNotEmpty && d.isNotEmpty) {
-            await FirestoreService().saveDream(t, d);
-            Navigator.of(context).pop();
-            // scroll to bottom
-            Future.delayed(const Duration(milliseconds: 200), () {
-              if (_scrollController.hasClients) {
-                _scrollController.animateTo(
-                  _scrollController.position.maxScrollExtent,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              }
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Dream saved!')),
-            );
-          }
-        },
-      ),
-    );
+  /// Animate the list up to the newest item at the bottom.
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
+
+void _showAddDream() {
+  _titleController.clear();
+  _descController.clear();
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true, // lets the sheet go full-screen
+    builder: (context) {
+      // 1) add bottom padding equal to the keyboard height
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        // 2) make the whole thing scrollable
+        child: SingleChildScrollView(
+          // 3) you can also constrain width if you like:
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: DreamForm(
+              titleCtl: _titleController,
+              descCtl:  _descController,
+              genres:   _genreOptions,
+              onSubmit: (genre) async {
+                final t = _titleController.text.trim();
+                final d = _descController.text.trim();
+                if (t.isEmpty || d.isEmpty) return;
+                await FirestoreService().saveDream(t, d, genre);
+                Navigator.of(context).pop();
+                _scrollToBottom();
+              },
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
 
   void _editDream(QueryDocumentSnapshot doc) {
     _titleController.text = doc['title'];
-    _descController.text = doc['description'];
+    _descController.text  = doc['description'];
+    final existingGenre = doc['genre'] as String?;
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Edit Dream'),
         content: DreamForm(
-          titleCtl: _titleController,
-          descCtl: _descController,
-          onSubmit: () async {
+          titleCtl:     _titleController,
+          descCtl:      _descController,
+          initialGenre: existingGenre,
+          genres:       _genreOptions,
+          onSubmit: (genre) async {
             final t = _titleController.text.trim();
             final d = _descController.text.trim();
-            if (t.isNotEmpty && d.isNotEmpty) {
-              await FirestoreService().updateDream(doc.id, t, d);
-              Navigator.of(context).pop();
-            }
+            if (t.isEmpty || d.isEmpty) return;
+            await FirestoreService().updateDream(doc.id, t, d, genre);
+            Navigator.of(context).pop();
           },
         ),
       ),
@@ -219,18 +287,31 @@ class _DreamsScreenState extends State<DreamsScreen> {
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, i) {
                       final doc = filtered[i];
-                      final ts = (doc['timestamp'] as Timestamp).toDate();
-                      final date = DateFormat.yMMMd().format(ts);
+
+                      // 1) Defensive read of the raw map:
+                      final data  = doc.data() as Map<String, dynamic>;
+
+                      // 2) Extract your fields, giving genre a safe default:
+                      final ts    = (data['timestamp'] as Timestamp).toDate();
+                      final date  = DateFormat.yMMMd().format(ts);
+                      final genre = (data['genre'] as String?)?.trim() ?? 'Other';
+
                       return Dismissible(
                         key: Key(doc.id),
                         background: Container(color: Colors.red),
                         direction: DismissDirection.endToStart,
                         onDismissed: (_) => _deleteDream(doc.id),
                         child: DreamEntryCard(
-                          title: '${doc['title']} • $date',
-                          description: doc['description'],
-                          onEdit: () => _editDream(doc),
-                          onDelete: () => _deleteDream(doc.id),
+                          title:       data['title'] as String,
+                          date:        ts, 
+                          description: data['description'] as String,
+                          tags:        [genre],
+                          onShare:     () {
+                            // optional: share this dream
+                            // e.g. Share.share('$date — ${data['title']}\n\n${data['description']}');
+                          },
+                          onEdit:      () => _editDream(doc),
+                          onDelete:    () => _deleteDream(doc.id),
                         ),
                       );
                     },
