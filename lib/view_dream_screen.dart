@@ -11,6 +11,7 @@ class ViewDreamScreen extends StatefulWidget {
   final DateTime timestamp;
   final List<String> tags;
   final double sentimentScore;
+  final int recallRating; // ← added here
 
   const ViewDreamScreen({
     Key? key,
@@ -20,6 +21,7 @@ class ViewDreamScreen extends StatefulWidget {
     required this.timestamp,
     this.tags = const [],
     this.sentimentScore = 0.0,
+    required this.recallRating, // ← added here
   }) : super(key: key);
 
   @override
@@ -48,33 +50,32 @@ class _ViewDreamScreenState extends State<ViewDreamScreen> {
     super.dispose();
   }
 
-  Future<void> _saveDream() async {
-    final newTitle = _titleController.text.trim();
-    final newDesc  = _descriptionController.text.trim();
-    if (newTitle.isEmpty || newDesc.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title and description cannot be empty')),
-      );
-      return;
-    }
-
-    await _firestoreService.updateDream(
-      widget.docId,
-      newTitle,
-      newDesc,
-      _tags,
-    );
-
+Future<void> _saveDream() async {
+  final newTitle = _titleController.text.trim();
+  final newDesc  = _descriptionController.text.trim();
+  if (newTitle.isEmpty || newDesc.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Dream updated')),
+      const SnackBar(content: Text('Title and description cannot be empty')),
     );
-
-    setState(() {
-      _isEditing = false;
-    });
-
-    Navigator.of(context).pop(true); // indicate success
+    return;
   }
+
+  // let's assume you pulled the original recallRating in initState:
+  await _firestoreService.updateDream(
+    id:            widget.docId,
+    title:         newTitle,
+    description:   newDesc,
+    genres:        _tags,
+    recallRating:  widget.recallRating, 
+  );
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Dream updated')),
+  );
+
+  setState(() => _isEditing = false);
+  Navigator.of(context).pop(true); // tell previous screen you changed it
+}
 
   @override
   Widget build(BuildContext context) {

@@ -50,48 +50,52 @@ class FirestoreService {
     return snapshot.docs;
   }
 
-  /// Add a dream entry with sentimentScore and genre.
-  /// Make sure you’ve created a composite index on (userId, genre, timestamp)
+/// Add a dream entry with sentimentScore and tags.
+/// If you later query by tags, create an "array-contains" index on (userId, genres).
   /// in the Firestore console for performant queries.
-  Future<void> saveDream(String title, String description, String genre) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+Future<void> saveDream({
+  required String title,
+  required String description,
+  required List<String> genres,
+  required int recallRating,
+}) async {
+  final user = _auth.currentUser;
+  if (user == null) return;
 
-    final safeGenre = genre.isNotEmpty ? genre : 'Other';
-    final sentimentScore = _analyzeSentiment(description);
+  final safeGenres = genres.isNotEmpty ? genres : ['Other'];
+  final sentimentScore = _analyzeSentiment(description);
 
-    try {
-      await _firestore.collection('dreams').add({
-        'title':          title,
-        'description':    description,
-        'sentimentScore': sentimentScore,
-        'genre':          safeGenre,
-        'timestamp':      Timestamp.now(),
-        'userId':         user.uid,
-      });
-    } catch (e, st) {
-      debugPrint('Error saving dream: $e\n$st');
-      rethrow;
-    }
-  }
+  await _firestore.collection('dreams').add({
+    'title':          title,
+    'description':    description,
+    'sentimentScore': sentimentScore,
+    'genres':         safeGenres,        // ← store list, not a single string
+    'recallRating':   recallRating,
+    'timestamp':      Timestamp.now(),
+    'userId':         user.uid,
+  });
+}
+
 
   /// Update a dream entry, recomputing sentimentScore if the description changed.
-  Future<void> updateDream(String docId, String newTitle, String newDescription, String genre) async {
-    final safeGenre     = genre.isNotEmpty ? genre : 'Other';
-    final sentimentScore = _analyzeSentiment(newDescription);
+Future<void> updateDream({
+  required String id,
+  required String title,
+  required String description,
+  required List<String> genres,
+  required int recallRating,
+}) async {
+  final safeGenres = genres.isNotEmpty ? genres : ['Other'];
+  final sentimentScore = _analyzeSentiment(description);
 
-    try {
-      await _firestore.collection('dreams').doc(docId).update({
-        'title':          newTitle,
-        'description':    newDescription,
-        'sentimentScore': sentimentScore,
-        'genre':          safeGenre,
-      });
-    } catch (e, st) {
-      debugPrint('Error updating dream: $e\n$st');
-      rethrow;
-    }
-  }
+  await _firestore.collection('dreams').doc(id).update({
+    'title':          title,
+    'description':    description,
+    'sentimentScore': sentimentScore,
+    'genres':         safeGenres,      // ← update list field
+    'recallRating':   recallRating,
+  });
+}
 
   Future<void> deleteDream(String docId) async {
     await _firestore.collection('dreams').doc(docId).delete();

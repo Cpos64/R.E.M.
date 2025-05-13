@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -25,20 +27,25 @@ class DreamEntryCard extends StatelessWidget {
   final String title;
   final String description;
   final List<String> tags;
-  final VoidCallback? onShare;   // now nullable
+  final int recallRating;           // ← we now require it
+  final VoidCallback? onShare;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
   const DreamEntryCard({
     Key? key,
+    this.onTap,
     required this.date,
     required this.title,
     required this.description,
-    this.tags = const [],         // default empty
-    this.onShare,                 // optional share
+    this.tags = const [],
+    required this.recallRating,      // ← added here
+    this.onShare,
     required this.onEdit,
     required this.onDelete,
   }) : super(key: key);
+
 
   /// Pick a soft pastel shade based on the tag’s hash.
   Color _colorForTag(String tag) {
@@ -50,7 +57,7 @@ class DreamEntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onEdit,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -69,7 +76,13 @@ class DreamEntryCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelSmall,
               ),
               const SizedBox(height: 4),
+                          // 1.5) Recall rating
+            Text(
+              'Recall: $recallRating / 10',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
 
+            const SizedBox(height: 4),
               // 2) Title (single line, ellipsis)
               Text(
                 title,
@@ -102,7 +115,7 @@ class DreamEntryCard extends StatelessWidget {
                           color: tagColor.darken(0.3),
                         ),
                       ),
-                      backgroundColor: Colors.transparent,
+                      backgroundColor: tagColor.withOpacity(0.1),
                       shape: StadiumBorder(
                         side: BorderSide(color: tagColor, width: 1.5),
                       ),
@@ -121,26 +134,38 @@ class DreamEntryCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   if (onShare != null) ...[
-                    Tooltip(
-                      message: 'Share dream',
-                      child: IconButton(
-                        icon: const Icon(Icons.share),
-                        onPressed: onShare,
+                    Semantics(
+                      label: 'Share dream',
+                      button: true,
+                      child: Tooltip(
+                        message: 'Share dream',
+                        child: IconButton(
+                          icon: const Icon(Icons.share),
+                          onPressed: onShare,
+                        ),
                       ),
                     ),
                   ],
-                  Tooltip(
-                    message: 'Edit dream',
-                    child: IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: onEdit,
+                  Semantics(
+                    label: 'Edit dream',
+                    button: true,
+                    child: Tooltip(
+                      message: 'Edit dream',
+                      child: IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: onEdit,
+                      ),
                     ),
                   ),
-                  Tooltip(
-                    message: 'Delete dream',
-                    child: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: onDelete,
+                  Semantics(
+                    label: 'Delete dream',
+                    button: true,
+                    child: Tooltip(
+                      message: 'Delete dream',
+                      child: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: onDelete,
+                      ),
                     ),
                   ),
                 ],

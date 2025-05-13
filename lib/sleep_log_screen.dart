@@ -318,6 +318,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   }
 
   Widget _buildSleepFormContent() {
+    // Date picker at the top
     final inputs = <SleepInputField>[
       SleepInputField(label: 'Total Duration', controller: _durationController, isDuration: true),
       SleepInputField(label: 'Deep Sleep',     controller: _deepController,     isDuration: true),
@@ -331,6 +332,31 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Date field
+        GestureDetector(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: DateFormat.yMd().parse(_dateController.text),
+              firstDate: DateTime(2000),
+              lastDate: DateTime.now(),
+            );
+            if (picked != null) {
+              setState(() {
+                _dateController.text = DateFormat.yMd().format(picked);
+              });
+            }
+          },
+          child: AbsorbPointer(
+            child: TextField(
+              controller: _dateController,
+              decoration: const InputDecoration(labelText: 'Date'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Duration/time pickers
         ...List.generate(inputs.length, (i) {
           final f = inputs[i];
           return Padding(
@@ -346,15 +372,17 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
             ),
           );
         }),
+
         const SizedBox(height: 16),
+        // Quality & Notes
         TextField(
           controller: _qualityController,
-          decoration: InputDecoration(labelText: 'Quality'),
+          decoration: const InputDecoration(labelText: 'Quality'),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _notesController,
-          decoration: InputDecoration(labelText: 'Notes'),
+          decoration: const InputDecoration(labelText: 'Notes'),
           maxLines: 3,
         ),
       ],

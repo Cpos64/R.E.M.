@@ -14,3 +14,10 @@ firebase_options.dart
 
 # Windows
 windows/
+
+# Firebase service account key – keep this out of VCS
+/scripts/sleepdreamsocialapp-firebase-adminsdk-fbsvc-5ccda48a60.json
+
+# Node modules
+node_modules/
+scripts/node_modules/
