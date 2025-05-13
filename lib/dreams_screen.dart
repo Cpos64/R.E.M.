@@ -16,7 +16,8 @@ class DreamForm extends StatefulWidget {
   final List<String> genres;
   final List<String>? initialGenres;
   final int? initialRating;
-  final void Function(List<String> genres, int recallRating) onSubmit;
+  final void Function(List<String> genres, int recallRating, DateTime date) onSubmit;
+  final DateTime? initialDate;
 
   const DreamForm({
     Key? key,
@@ -25,6 +26,7 @@ class DreamForm extends StatefulWidget {
     required this.genres,
     this.initialGenres,
     this.initialRating,
+    this.initialDate,
     required this.onSubmit,
   }) : super(key: key);
 
@@ -35,12 +37,14 @@ class DreamForm extends StatefulWidget {
 class _DreamFormState extends State<DreamForm> {
   late List<String> _selectedGenres;
   late int _recallRating;
+  late DateTime _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _selectedGenres = List.from(widget.initialGenres ?? []);
     _recallRating = widget.initialRating ?? 5;
+    _selectedDate = widget.initialDate ?? DateTime.now();
   }
 
   Widget _buildGenreChips() {
@@ -76,6 +80,31 @@ class _DreamFormState extends State<DreamForm> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+              // ── DATE PICKER ROW ──
+        Row(
+          children: [
+            Text(
+              'Date: ${DateFormat.yMMMd().format(_selectedDate)}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              child: const Text('Change'),
+              onPressed: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) {
+                  setState(() => _selectedDate = picked);
+                }
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
           // Title & Description
           TextField(controller: widget.titleCtl, decoration: const InputDecoration(labelText: 'Title')),
           const SizedBox(height: 12),
@@ -122,7 +151,7 @@ class _DreamFormState extends State<DreamForm> {
               ElevatedButton(
                 onPressed: _selectedGenres.isEmpty
                     ? null
-                    : () => widget.onSubmit(_selectedGenres, _recallRating),
+                    : () => widget.onSubmit(_selectedGenres, _recallRating, _selectedDate),
                 child: const Text('Save'),
               ),
             ],
@@ -245,7 +274,8 @@ void _showAddDream() {
               descCtl:       _descController,
               genres:        _genreOptions,
               initialRating: 5,  // or pull from existing doc when editing
-              onSubmit: (selectedGenres, recallRating) async {
+              initialDate: DateTime.now(),
+              onSubmit: (selectedGenres, recallRating, selectedDate) async {
                 final t = _titleController.text.trim();
                 final d = _descController.text.trim();
                 if (t.isEmpty || d.isEmpty) return;
@@ -254,6 +284,7 @@ void _showAddDream() {
                       description: d,
                       genres: selectedGenres,       // pass the List<String>
                       recallRating: recallRating,
+                      date: selectedDate,
                     );
                 Navigator.of(context).pop();
                 _scrollToBottom();
@@ -330,6 +361,7 @@ final existingGenres = data.containsKey('genres')
     // old schema: single string
     : [ (data['genre'] as String?) ?? 'Other' ];
     final existingRecall   = (doc['recallRating'] as num?)?.toInt() ?? 5;
+    final ts = (doc['timestamp'] as Timestamp).toDate();
 
     showDialog(
       context: context,
@@ -340,20 +372,23 @@ final existingGenres = data.containsKey('genres')
           descCtl:       _descController,
           initialGenres:  existingGenres,
           genres:        _genreOptions,
-          initialRating: existingRecall,       // ← wire up the old rating
-          onSubmit: (selectedGenres, recallRating) async {
+          initialRating: existingRecall, 
+          initialDate:   ts,     
+          onSubmit: (selectedGenres, recallRating, selectedDate) async {
             final t = _titleController.text.trim();
             final d = _descController.text.trim();
             if (t.isEmpty || d.isEmpty) return;
-            // now pass your new 5th parameter
-            await FirestoreService().updateDream(
-              id:            doc.id,
-              title:         t,
-              description:   d,
-              genres:        selectedGenres,
-              recallRating:  recallRating,
+
+            await FirestoreService().saveDream(
+              title:        t,
+              description:  d,
+              genres:       selectedGenres,
+              recallRating: recallRating,
+              date:         selectedDate,  
             );
+
             Navigator.of(context).pop();
+            _scrollToBottom();
           },
         ),
       ),

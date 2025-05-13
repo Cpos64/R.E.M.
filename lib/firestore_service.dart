@@ -58,6 +58,7 @@ Future<void> saveDream({
   required String description,
   required List<String> genres,
   required int recallRating,
+  required DateTime date,
 }) async {
   final user = _auth.currentUser;
   if (user == null) return;
@@ -71,7 +72,7 @@ Future<void> saveDream({
     'sentimentScore': sentimentScore,
     'genres':         safeGenres,        // ← store list, not a single string
     'recallRating':   recallRating,
-    'timestamp':      Timestamp.now(),
+    'timestamp':      Timestamp.fromDate(date),
     'userId':         user.uid,
   });
 }
@@ -84,6 +85,7 @@ Future<void> updateDream({
   required String description,
   required List<String> genres,
   required int recallRating,
+  required DateTime date,
 }) async {
   final safeGenres = genres.isNotEmpty ? genres : ['Other'];
   final sentimentScore = _analyzeSentiment(description);
@@ -94,6 +96,7 @@ Future<void> updateDream({
     'sentimentScore': sentimentScore,
     'genres':         safeGenres,      // ← update list field
     'recallRating':   recallRating,
+    'timestamp':      Timestamp.fromDate(date),
   });
 }
 
