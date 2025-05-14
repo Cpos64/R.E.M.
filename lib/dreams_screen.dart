@@ -5,8 +5,6 @@ import 'package:intl/intl.dart';
 import '../firestore_service.dart';
 import '../widgets/dream_entry_card.dart';
 import '../widgets/dream_chart_pager.dart';
-import '../widgets/dream_genre_pie_chart.dart';
-import '../widgets/dream_sentiment_line_chart.dart';
 
 
 /// A reusable form widget for adding/editing dreams with up to 2 genre tags.
@@ -287,7 +285,14 @@ void _showAddDream() {
                       date: selectedDate,
                     );
                 Navigator.of(context).pop();
-                _scrollToBottom();
+                // scroll back to the top of the list
+              if (_scrollController.hasClients) {
+                _scrollController.animateTo(
+                  0.0,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
               },
             ),
           ),
@@ -497,19 +502,91 @@ Widget build(BuildContext context) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ── Dream-Analytics pager ──
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: SizedBox(
-              height: 240,
-              child: DreamChartPager(
-                charts: const [
-                  DreamGenrePieChart(),
-                  DreamSentimentLineChart(),
-                ],
-              ),
-            ),
-          ),
+// ── Dream-Analytics pager ──
+StreamBuilder<QuerySnapshot>(
+  stream: _dreamsStream(),
+  builder: (ctx, snap) {
+    if (snap.connectionState == ConnectionState.waiting) {
+      return const SizedBox(
+        height: 240,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!snap.hasData || snap.data!.docs.isEmpty) {
+      return const SizedBox(
+        height: 240,
+        child: Center(child: Text('No dreams to chart')),
+      );
+    }
+
+    // 1) group docs by day
+    final docsByDay = <DateTime, List<QueryDocumentSnapshot>>{};
+    for (var d in snap.data!.docs) {
+      final ts   = (d['timestamp'] as Timestamp).toDate();
+      final day  = DateTime(ts.year, ts.month, ts.day);
+      docsByDay.putIfAbsent(day, () => []).add(d);
+    }
+
+    // 2) sort days
+    final days = docsByDay.keys.toList()..sort();
+
+    // 3) build buckets
+    final buckets = days.map((day) {
+      final list = docsByDay[day]!;
+      // totalCount
+      final totalCount = list.length;
+      // genreCounts, recallRatings, wordCounts
+      final genreCounts   = <String,int>{};
+      final recallRatings = <int>[];
+      final wordCounts    = <int>[];
+
+for (var doc in list) {
+  final data = doc.data() as Map<String,dynamic>;
+
+  // 1) handle missing 'genres'
+  final genresList = data.containsKey('genres')
+    // new schema: list of strings
+    ? (data['genres'] as List).cast<String>()
+    // fallback to old 'genre' single string
+    : [(data['genre'] as String?) ?? 'Other'];
+
+  for (var g in genresList) {
+    genreCounts[g] = (genreCounts[g] ?? 0) + 1;
+  }
+
+  // 2) recallRating
+  recallRatings.add((data['recallRating'] as num).toInt());
+
+  // 3) word count
+  final desc = (data['description'] as String).trim();
+  wordCounts.add(desc.isEmpty
+      ? 0
+      : desc.split(RegExp(r'\s+')).length
+  );
+}
+
+
+      return {
+        'date':          day,
+        'totalCount':    totalCount,
+        'genreCounts':   genreCounts,
+        'recallRatings': recallRatings,
+        'wordCounts':    wordCounts,
+      };
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SizedBox(
+        height: 400,
+        child: DreamChartPager(
+          buckets: buckets,
+          days: days,
+        ),
+      ),
+    );
+  },
+),
 
           // ── Search bar ──
           _buildSearchBar(),
