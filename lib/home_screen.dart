@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math';
+
+import '../widgets/multi_dream_entry_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(bool) toggleTheme;
@@ -21,6 +24,73 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _reminderEnabled = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Trigger the daily dream prompt as soon as the home screen appears:
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowDreamQuestion(); //<- commented out for testing
+      // _showDreamQuestionDialog(); // <-- delete this after testing
+    });
+  }
+
+  Future<void> _maybeShowDreamQuestion() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastPrompt = prefs.getString('lastDreamPromptDate');
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (lastPrompt != today) {
+      // Mark that we've asked today
+      await prefs.setString('lastDreamPromptDate', today);
+      _showDreamQuestionDialog();
+    }
+  }
+
+  void _showDreamQuestionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Did you dream last night?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _openMultiDreamModal();
+            },
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+  }
+
+void _openMultiDreamModal() {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      return Padding(
+        // make room for the keyboard
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          // cover 90% of screen height
+          height: MediaQuery.of(ctx).size.height * 0.9,
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).canvasColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: const MultiDreamEntryModal(),
+        ),
+      );
+    },
+  );
+}
+
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await _auth.signOut();
@@ -30,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Logged out successfully')),
     );
-    // let authStateChanges propagate
+    // Let auth state changes propagate
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
@@ -62,10 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
     "“The way to a more productive, more inspired, more joyful life is getting enough sleep.” – Arianna Huffington",
       ];
 
-  final now = DateTime.now();
-  final seed = now.year * 10000 + now.month * 100 + now.day;
-  final rng = Random(seed);
-  final quoteOfTheDay = quotes[rng.nextInt(quotes.length)];
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    final rng = Random(seed);
+    final quoteOfTheDay = quotes[rng.nextInt(quotes.length)];
 
     return Scaffold(
       appBar: AppBar(
@@ -100,35 +170,35 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
 
             // ─── Quick-Add Buttons ───
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pushNamed(context, '/sleep_logs'),
-            icon: const Icon(Icons.bedtime, size: 32),
-            label: const Text("Add Sleep", style: TextStyle(fontSize: 16)),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(140, 140),        // square-ish
-              padding: const EdgeInsets.all(16),         // extra tap area
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/sleep_logs'),
+                  icon: const Icon(Icons.bedtime, size: 32),
+                  label: const Text("Add Sleep", style: TextStyle(fontSize: 16)),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(140, 140),
+                    padding: const EdgeInsets.all(16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/dreams'),
+                  icon: const Icon(Icons.book, size: 32),
+                  label: const Text("Add Dream", style: TextStyle(fontSize: 16)),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(140, 140),
+                    padding: const EdgeInsets.all(16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pushNamed(context, '/dreams'),
-            icon: const Icon(Icons.book, size: 32),
-            label: const Text("Add Dream", style: TextStyle(fontSize: 16)),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(140, 140),
-              padding: const EdgeInsets.all(16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
-        ],
-      ),
             const SizedBox(height: 32),
 
             // ─── Quote of the Day ───
@@ -154,8 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
               onChanged: (v) => setState(() => _reminderEnabled = v),
               secondary: const Icon(Icons.alarm),
             ),
-
-            // (navigation tiles removed – quick-add covers it now)
           ],
         ),
       ),

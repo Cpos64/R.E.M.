@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -32,6 +30,7 @@ class DreamEntryCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback? onTap;
+  final VoidCallback? onAdd;
 
   const DreamEntryCard({
     Key? key,
@@ -44,6 +43,7 @@ class DreamEntryCard extends StatelessWidget {
     this.onShare,
     required this.onEdit,
     required this.onDelete,
+    this.onAdd,
   }) : super(key: key);
 
 
@@ -70,17 +70,29 @@ class DreamEntryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1) Date (small, grey)
-              Text(
-                DateFormat.yMMMd().format(date),
-                style: Theme.of(context).textTheme.labelSmall,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      DateFormat.yMMMd().format(date),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                  if (onAdd != null)
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      tooltip: 'Add another dream',
+                      onPressed: onAdd,
+                    ),
+                ],
               ),
+
               const SizedBox(height: 4),
-                          // 1.5) Recall rating
-            Text(
-              'Recall: $recallRating / 10',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+              // ── Recall rating
+              Text(
+                'Recall: $recallRating / 10',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
 
             const SizedBox(height: 4),
               // 2) Title (single line, ellipsis)

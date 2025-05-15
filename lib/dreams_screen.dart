@@ -5,161 +5,8 @@ import 'package:intl/intl.dart';
 import '../firestore_service.dart';
 import '../widgets/dream_entry_card.dart';
 import '../widgets/dream_chart_pager.dart';
-
-
-/// A reusable form widget for adding/editing dreams with up to 2 genre tags.
-class DreamForm extends StatefulWidget {
-  final TextEditingController titleCtl;
-  final TextEditingController descCtl;
-  final List<String> genres;
-  final List<String>? initialGenres;
-  final int? initialRating;
-  final void Function(List<String> genres, int recallRating, DateTime date) onSubmit;
-  final DateTime? initialDate;
-
-  const DreamForm({
-    Key? key,
-    required this.titleCtl,
-    required this.descCtl,
-    required this.genres,
-    this.initialGenres,
-    this.initialRating,
-    this.initialDate,
-    required this.onSubmit,
-  }) : super(key: key);
-
-  @override
-  _DreamFormState createState() => _DreamFormState();
-}
-
-class _DreamFormState extends State<DreamForm> {
-  late List<String> _selectedGenres;
-  late int _recallRating;
-  late DateTime _selectedDate;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedGenres = List.from(widget.initialGenres ?? []);
-    _recallRating = widget.initialRating ?? 5;
-    _selectedDate = widget.initialDate ?? DateTime.now();
-  }
-
-  Widget _buildGenreChips() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 4,
-      children: widget.genres.map((g) {
-        final selected = _selectedGenres.contains(g);
-        return ChoiceChip(
-          label: Text(g),
-          selected: selected,
-          onSelected: (on) {
-            setState(() {
-              if (on) {
-                if (_selectedGenres.length < 2) _selectedGenres.add(g);
-              } else {
-                _selectedGenres.remove(g);
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20, right: 20, top: 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-              // ── DATE PICKER ROW ──
-        Row(
-          children: [
-            Text(
-              'Date: ${DateFormat.yMMMd().format(_selectedDate)}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              child: const Text('Change'),
-              onPressed: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                );
-                if (picked != null) {
-                  setState(() => _selectedDate = picked);
-                }
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-          // Title & Description
-          TextField(controller: widget.titleCtl, decoration: const InputDecoration(labelText: 'Title')),
-          const SizedBox(height: 12),
-          TextField(
-            controller: widget.descCtl,
-            decoration: const InputDecoration(labelText: 'Description'),
-            maxLines: 4,
-          ),
-
-          const SizedBox(height: 12),
-
-          // Genre chips (up to 2)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text('Genres (up to 2)', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 8),
-          _buildGenreChips(),
-
-          const SizedBox(height: 12),
-
-          // Recall slider
-          Row(
-            children: [
-              Text('Recall: $_recallRating'),
-              Expanded(
-                child: Slider(
-                  value: _recallRating.toDouble(),
-                  min: 0, max: 10, divisions: 10,
-                  label: '$_recallRating',
-                  onChanged: (v) => setState(() => _recallRating = v.round()),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-              ElevatedButton(
-                onPressed: _selectedGenres.isEmpty
-                    ? null
-                    : () => widget.onSubmit(_selectedGenres, _recallRating, _selectedDate),
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+import '../widgets/dream_form.dart';
+import '../widgets/multi_dream_entry_modal.dart';
 
 
 class DreamsScreen extends StatefulWidget {
@@ -193,6 +40,7 @@ static const _genreOptions = [
   'Tragedy',
   'Other',
 ];
+
 
 Stream<QuerySnapshot> _dreamsStream() {
   final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -251,56 +99,34 @@ final genresMatch = genresList.any((g) => g.toLowerCase().contains(kw));
   }
 
 void _showAddDream() {
-  _titleController.clear();
-  _descController.clear();
   showModalBottomSheet(
     context: context,
-    isScrollControlled: true, // lets the sheet go full-screen
-    builder: (context) {
-      // 1) add bottom padding equal to the keyboard height
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) {
+      final h = MediaQuery.of(context).size.height * 0.9;
       return Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+          bottom: MediaQuery.of(context).viewInsets.bottom
         ),
-        // 2) make the whole thing scrollable
-        child: SingleChildScrollView(
-          // 3) you can also constrain width if you like:
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child:  DreamForm(
-              titleCtl:      _titleController,
-              descCtl:       _descController,
-              genres:        _genreOptions,
-              initialRating: 5,  // or pull from existing doc when editing
-              initialDate: DateTime.now(),
-              onSubmit: (selectedGenres, recallRating, selectedDate) async {
-                final t = _titleController.text.trim();
-                final d = _descController.text.trim();
-                if (t.isEmpty || d.isEmpty) return;
-                    await FirestoreService().saveDream(
-                      title: t,
-                      description: d,
-                      genres: selectedGenres,       // pass the List<String>
-                      recallRating: recallRating,
-                      date: selectedDate,
-                    );
-                Navigator.of(context).pop();
-                // scroll back to the top of the list
-              if (_scrollController.hasClients) {
-                _scrollController.animateTo(
-                  0.0,
-                  duration: Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              }
-              },
+        child: Container(
+          height: h,
+          clipBehavior: Clip.antiAlias,                        // clip the rounded corners
+          decoration: BoxDecoration(
+            color: Theme.of(context).canvasColor,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(16)
             ),
           ),
+          child: const MultiDreamEntryModal(),
         ),
       );
     },
   );
 }
+
+
+
 
 void _showDreamDetail(QueryDocumentSnapshot doc) {
   final data = doc.data() as Map<String, dynamic>;
