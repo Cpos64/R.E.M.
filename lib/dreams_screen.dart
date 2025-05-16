@@ -7,6 +7,9 @@ import '../widgets/dream_entry_card.dart';
 import '../widgets/dream_chart_pager.dart';
 import '../widgets/dream_form.dart';
 import '../widgets/multi_dream_entry_modal.dart';
+import '../widgets/day_dream_pager.dart';
+
+
 
 
 class DreamsScreen extends StatefulWidget {
@@ -57,6 +60,11 @@ Stream<QuerySnapshot> _dreamsStream() {
     .orderBy('timestamp', descending: true)
     .snapshots();
 }
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -316,7 +324,7 @@ void _showGenreFilterSheet() {
   );
 }
 
- @override
+@override
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(title: const Text('Dream Journal')),
@@ -325,157 +333,121 @@ Widget build(BuildContext context) {
       child: const Icon(Icons.add),
     ),
     body: SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-// ── Dream-Analytics pager ──
-StreamBuilder<QuerySnapshot>(
-  stream: _dreamsStream(),
-  builder: (ctx, snap) {
-    if (snap.connectionState == ConnectionState.waiting) {
-      return const SizedBox(
-        height: 240,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      child: StreamBuilder<QuerySnapshot>(
+        stream: _dreamsStream(),
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting)
+            return const Center(child: CircularProgressIndicator());
+          final allDocs = snap.data!.docs;
+          // 1) filter
+          final docs = _applyFilter(allDocs);
+          if (docs.isEmpty) return const Center(child: Text('No dreams yet.'));
+
+          // 2) group by day
+          final docsByDay = <DateTime,List<QueryDocumentSnapshot>>{};
+          for (var d in docs) {
+            final ts  = (d['timestamp'] as Timestamp).toDate();
+            final day = DateTime(ts.year,ts.month,ts.day);
+            docsByDay.putIfAbsent(day,()=>[]).add(d);
+          }
+          final days = docsByDay.keys.toList()
+            ..sort((a, b) => b.compareTo(a));  // most recent date first
+
+// 4a) build buckets
+final buckets = days.map((day) {
+  final list = docsByDay[day]!;
+
+  // 1) compute genreCounts, recallRatings, wordCounts
+  final genreCounts = <String,int>{};
+  final recallRatings = <int>[];
+  final wordCounts = <int>[];
+
+  for (var doc in list) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    // genres list (fallback to old schema)
+    final genresList = data.containsKey('genres')
+      ? (data['genres'] as List).cast<String>()
+      : [(data['genre'] as String?) ?? 'Other'];
+
+    // tally genres
+    for (var g in genresList) {
+      genreCounts[g] = (genreCounts[g] ?? 0) + 1;
     }
-    if (!snap.hasData || snap.data!.docs.isEmpty) {
-      return const SizedBox(
-        height: 240,
-        child: Center(child: Text('No dreams to chart')),
-      );
-    }
 
-    // 1) group docs by day
-    final docsByDay = <DateTime, List<QueryDocumentSnapshot>>{};
-    for (var d in snap.data!.docs) {
-      final ts   = (d['timestamp'] as Timestamp).toDate();
-      final day  = DateTime(ts.year, ts.month, ts.day);
-      docsByDay.putIfAbsent(day, () => []).add(d);
-    }
+    // recall rating
+    recallRatings.add((data['recallRating'] as num?)?.toInt() ?? 0);
 
-    // 2) sort days
-    final days = docsByDay.keys.toList()..sort();
-
-    // 3) build buckets
-    final buckets = days.map((day) {
-      final list = docsByDay[day]!;
-      // totalCount
-      final totalCount = list.length;
-      // genreCounts, recallRatings, wordCounts
-      final genreCounts   = <String,int>{};
-      final recallRatings = <int>[];
-      final wordCounts    = <int>[];
-
-for (var doc in list) {
-  final data = doc.data() as Map<String,dynamic>;
-
-  // 1) handle missing 'genres'
-  final genresList = data.containsKey('genres')
-    // new schema: list of strings
-    ? (data['genres'] as List).cast<String>()
-    // fallback to old 'genre' single string
-    : [(data['genre'] as String?) ?? 'Other'];
-
-  for (var g in genresList) {
-    genreCounts[g] = (genreCounts[g] ?? 0) + 1;
+    // word count
+    final desc = (data['description'] as String).trim();
+    wordCounts.add(
+      desc.isEmpty ? 0 : desc.split(RegExp(r'\s+')).length
+    );
   }
 
-  // 2) recallRating
-  recallRatings.add((data['recallRating'] as num).toInt());
-
-  // 3) word count
-  final desc = (data['description'] as String).trim();
-  wordCounts.add(desc.isEmpty
-      ? 0
-      : desc.split(RegExp(r'\s+')).length
-  );
-}
+  return {
+    'date': day,
+    'totalCount': list.length,
+    'genreCounts': genreCounts,
+    'recallRatings': recallRatings,
+    'wordCounts': wordCounts,
+  };
+}).toList();
 
 
-      return {
-        'date':          day,
-        'totalCount':    totalCount,
-        'genreCounts':   genreCounts,
-        'recallRatings': recallRatings,
-        'wordCounts':    wordCounts,
-      };
-    }).toList();
-
-    return Padding(
+// 4b) render column:
+return Column(
+  children: [
+    // ── Dream-Analytics pager ──
+    Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: SizedBox(
-        height: 400,
+        height: 300, // or whatever
         child: DreamChartPager(
           buckets: buckets,
           days: days,
         ),
       ),
-    );
-  },
-),
+    ),
+              _buildSearchBar(),
 
-          // ── Search bar ──
-          _buildSearchBar(),
-
-          // ── Dreams list ──
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _dreamsStream(),
-              builder: (ctx, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snap.hasError) {
-                  // Print the full error (with index-creation URL) to the console:
-                  debugPrint('Firestore query failed: ${snap.error}');
-                  // Show a simpler message in the UI:
-                  return Center(child: Text('Failed to load dreams (see console)'));
-                }
-                final docs = snap.data!.docs;
-                if (docs.isEmpty) {
-                  return const Center(child: Text('No dreams yet.'));
-                }
-                final filtered = _applyFilter(docs);
-                return ListView.separated(
+              // ── swipeable per-day list ──
+              Expanded(
+                child: ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
-                    final doc = filtered[i];
-                    final data = doc.data() as Map<String, dynamic>;
-                    final ts = (data['timestamp'] as Timestamp).toDate();
-                    final genresList = data.containsKey('genres')
-                        ? (data['genres'] as List).cast<String>()
-                        : [ (data['genre'] as String?) ?? 'Other' ];
-                    final recallRating =
-                        (data['recallRating'] as num?)?.toInt() ?? 0;
-
-                    return Dismissible(
-                      key: Key(doc.id),
-                      background: Container(color: Colors.red),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (_) => _deleteDream(doc.id),
-                      child: DreamEntryCard(
-                        title: data['title'] as String,
-                        date: ts,
-                        description: data['description'] as String,
-                        tags: genresList,
-                        recallRating: recallRating,
-                        onTap: () => _showDreamDetail(doc),
-                        onShare: () {},
-                        onEdit: () => _editDream(doc),
-                        onDelete: () => _deleteDream(doc.id),
-                      ),
+                  itemCount: days.length,
+                  itemBuilder: (ctx, dayIdx) {
+                    final day = days[dayIdx];
+                    final entries = docsByDay[day]!;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // date header
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
+                          child: Text(
+                            DateFormat.yMMMd().format(day),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        DayDreamPager(
+                          entries: entries,
+                          onTapEntry:   _showDreamDetail,
+                          onEditEntry:  _editDream,
+                          onDeleteEntry: _deleteDream,
+                        ),
+                      ],
                     );
                   },
-                );
-              },
-            ),
-          ),
-        ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     ),
   );
 }
 }
+
