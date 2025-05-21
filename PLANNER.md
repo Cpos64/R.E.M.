@@ -1,0 +1,24 @@
+# Planner for R.E.M. APP Project
+
+## 📅 This Week
+
+
+## 📆 Today
+
+
+## ⏳ Backlog
+[] Add still sleeping option to pop up "Did you dream?" window
+- Will allow user to log a dream, go back to bed, and then log on to the app and the pop up message will greet user again
+
+[] Make appearance look like other social media apps
+- Ribbon with home, feed, sleep, dreams, settings, etc. on the bottom of the app
+
+[] Add clickable attribute to sleep logs  
+[] Update sleep-log view
+
+[] Fix and update dream charts
+
+[] Add normal category to dream genre list
+[] Update diffent colors for genres
+
+[] Make compatible with Android Simulator
