@@ -22,3 +22,11 @@
 [] Update diffent colors for genres
 
 [] Make compatible with Android Simulator
+
+[] Add recommendations tab
+
+[] Create feed tab
+- Area where dream and sleep logs are shared
+
+[] Shareable option to other social medias
+- ability to export post/log as a picture so the user can share on other social media platforms and increase REM exposure
