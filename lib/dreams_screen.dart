@@ -218,16 +218,16 @@ final existingGenres = data.containsKey('genres')
             final d = _descController.text.trim();
             if (t.isEmpty || d.isEmpty) return;
 
-            await FirestoreService().saveDream(
+            await FirestoreService().updateDream(
+              id:           doc.id,
               title:        t,
               description:  d,
               genres:       selectedGenres,
               recallRating: recallRating,
-              date:         selectedDate,  
+              date:         selectedDate,
             );
 
             Navigator.of(context).pop();
-            _scrollToBottom();
           },
         ),
       ),

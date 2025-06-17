@@ -66,7 +66,8 @@ Future<void> _saveDream() async {
     title:         newTitle,
     description:   newDesc,
     genres:        _tags,
-    recallRating:  widget.recallRating, 
+    recallRating:  widget.recallRating,
+    date:          widget.timestamp,
   );
 
   ScaffoldMessenger.of(context).showSnackBar(
