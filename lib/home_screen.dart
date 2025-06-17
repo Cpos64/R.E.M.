@@ -39,10 +39,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final lastPrompt = prefs.getString('lastDreamPromptDate');
     final today = DateTime.now().toIso8601String().substring(0, 10);
     if (lastPrompt != today) {
-      // Mark that we've asked today
-      await prefs.setString('lastDreamPromptDate', today);
       _showDreamQuestionDialog();
     }
+  }
+
+  Future<void> _setPromptDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    await prefs.setString('lastDreamPromptDate', today);
   }
 
   void _showDreamQuestionDialog() {
@@ -53,11 +57,19 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Did you dream last night?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () async {
+              await _setPromptDate();
+              Navigator.of(context).pop();
+            },
             child: const Text('No'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Still Sleeping'),
+          ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              await _setPromptDate();
               Navigator.of(context).pop();
               _openMultiDreamModal();
             },
