@@ -532,7 +532,8 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
                 if (!snap.hasData) return Center(child: CircularProgressIndicator());
                 final data = snap.data!;
-                if (data.isEmpty) return Center(child: Text('No sleep data yet.'));
+                // Always show the chart pager so the user can switch windows
+                // even when the current range has no entries.
                 return SleepChartPager(
                   sleepData: data,
                   selectedWindow: _selectedWindow,

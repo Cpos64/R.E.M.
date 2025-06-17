@@ -31,8 +31,8 @@
 [] Shareable option to other social medias
 - ability to export post/log as a picture so the user can share on other social media platforms and increase REM exposure
 
-[] Fix sleep and dream charts
-- sleep charts not showing up, says "No sleep data yet." even though there is, just not for last 7 days.
+[x] Fix sleep and dream charts
+- sleep charts now appear even with no recent entries, allowing the user to switch windows.
 
 [] Fix avg labels on charts
 - hard to see labels on 30-d and 90-d charts
