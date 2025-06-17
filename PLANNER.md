@@ -36,3 +36,5 @@
 
 [] Fix avg labels on charts
 - hard to see labels on 30-d and 90-d charts
+
+[] Build Container (Dockerfile) for Codex to run Flutter commands
