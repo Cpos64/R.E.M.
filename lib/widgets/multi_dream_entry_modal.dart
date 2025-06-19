@@ -3,24 +3,10 @@
 import 'package:flutter/material.dart';
 import '../firestore_service.dart';
 import 'dream_form.dart';
+import '../dream_genres.dart';
 
 /// Same genre options as in DreamScreen
-const List<String> _genreOptions = [
-  'Nightmare',
-  'Lucid',
-  'Recurring',
-  'Problem-Solving',
-  'Flying',
-  'Falling',
-  'Prophetic',
-  'Adventure',
-  'Romantic',
-  'Emotional',
-  'Strange',
-  'Funny',
-  'Tragedy',
-  'Other',
-];
+const List<String> _genreOptions = dreamGenres;
 
 class MultiDreamEntryModal extends StatefulWidget {
   const MultiDreamEntryModal({Key? key}) : super(key: key);

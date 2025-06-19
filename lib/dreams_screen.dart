@@ -8,6 +8,7 @@ import '../widgets/dream_chart_pager.dart';
 import '../widgets/dream_form.dart';
 import '../widgets/multi_dream_entry_modal.dart';
 import '../widgets/day_dream_pager.dart';
+import 'dream_genres.dart';
 
 
 
@@ -27,22 +28,7 @@ class _DreamsScreenState extends State<DreamsScreen> {
   String _filterKeyword = '';
   final List<String> _selectedTags = [];
 
-static const _genreOptions = [
-  'Nightmare',
-  'Lucid',
-  'Recurring',
-  'Problem-Solving',
-  'Flying',
-  'Falling',
-  'Prophetic',
-  'Adventure',
-  'Romantic',
-  'Emotional',
-  'Strange',
-  'Funny',
-  'Tragedy',
-  'Other',
-];
+static const _genreOptions = dreamGenres;
 
 
 Stream<QuerySnapshot> _dreamsStream() {

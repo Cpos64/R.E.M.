@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../dream_genres.dart';
 
 class DreamGenreTrendsChart extends StatelessWidget {
   final List<Map<String, dynamic>> buckets;
@@ -13,12 +14,13 @@ class DreamGenreTrendsChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Collect all unique genres across days
-    final genres = <String>{};
+    // Collect all unique genres across days and preserve
+    // the ordering from [dreamGenres] for consistent colors
+    final used = <String>{};
     for (var b in buckets) {
-      genres.addAll((b['genreCounts'] as Map<String, int>).keys);
+      used.addAll((b['genreCounts'] as Map<String, int>).keys);
     }
-    final genreList = genres.toList();
+    final genreList = dreamGenres.where((g) => used.contains(g)).toList();
 
     return BarChart(
       BarChartData(
@@ -45,8 +47,7 @@ class DreamGenreTrendsChart extends StatelessWidget {
             rods.add(BarChartRodStackItem(
               runningTotal,
               runningTotal + c,
-              // you can customize this palette
-              Colors.primaries[genreList.indexOf(g) % Colors.primaries.length],
+              genreColors[g] ?? Colors.grey,
             ));
             runningTotal += c;
           }
