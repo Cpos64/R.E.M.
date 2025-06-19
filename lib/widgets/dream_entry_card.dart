@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../dream_genres.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A little helper to darken your pastel colors for legible text.
@@ -52,9 +53,7 @@ class DreamEntryCard extends StatelessWidget {
   }) : super(key: key);
 
   Color _colorForTag(String tag) {
-    final primaries = Colors.primaries;
-    final material = primaries[tag.hashCode % primaries.length];
-    return material.shade100;
+    return genreColors[tag] ?? Colors.grey.shade300;
   }
 
   @override
