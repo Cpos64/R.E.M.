@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/multi_dream_entry_modal.dart';
+import 'screens/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(bool) toggleTheme;
@@ -23,18 +24,28 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _reminderEnabled = false;
+  bool _dreamPromptEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    // Trigger the daily dream prompt as soon as the home screen appears:
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowDreamQuestion(); //<- commented out for testing
-      // _showDreamQuestionDialog(); // <-- delete this after testing
+    _loadDreamPromptSetting().then((_) {
+      // Trigger the daily dream prompt as soon as the home screen appears:
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maybeShowDreamQuestion();
+      });
+    });
+  }
+
+  Future<void> _loadDreamPromptSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _dreamPromptEnabled = prefs.getBool('dreamPromptEnabled') ?? true;
     });
   }
 
   Future<void> _maybeShowDreamQuestion() async {
+    if (!_dreamPromptEnabled) return;
     final prefs = await SharedPreferences.getInstance();
     final lastPrompt = prefs.getString('lastDreamPromptDate');
     final today = DateTime.now().toIso8601String().substring(0, 10);
@@ -62,10 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.of(context).pop();
             },
             child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Still Sleeping'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -154,7 +161,15 @@ void _openMultiDreamModal() {
         leading: IconButton(
           icon: const Icon(Icons.settings),
           tooltip: 'Settings',
-          onPressed: () => Navigator.pushNamed(context, '/settings'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SettingsScreen(
+                isDarkTheme: widget.isDarkTheme,
+                toggleTheme: widget.toggleTheme,
+              ),
+            ),
+          ),
         ),
         title: const Text('R.E.M. Home'),
         actions: [

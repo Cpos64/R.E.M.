@@ -7,8 +7,8 @@
 
 
 ## ⏳ Backlog
-[] Add still sleeping option to pop up "Did you dream?" window
-- Will allow user to log a dream, go back to bed, and then log on to the app and the pop up message will greet user again
+[x] Add still sleeping option to pop up "Did you dream?" window
+- Feature was reverted to only offer Yes/No options
 
 [] Make appearance look like other social media apps
 - Ribbon with home, feed, sleep, dreams, settings, etc. on the bottom of the app
