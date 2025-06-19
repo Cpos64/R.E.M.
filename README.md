@@ -46,19 +46,15 @@ cupertino_icons: ^1.0.0
 1. **Clone the repo**
 
    ```bash
+   git clone https://github.com/Cpos64/REM.git
+   cd REM
    ```
-
-git clone [https://github.com/Cpos64/REM.git](https://github.com/Cpos64/REM.git)
-cd REM
-\`\`\`
 
 2. **Install packages**
 
    ```bash
+   flutter pub get
    ```
-
-flutter pub get
-\`\`\`
 
 3. **Firebase configuration**
 
@@ -71,10 +67,14 @@ flutter pub get
 4. **Run the app**
 
    ```bash
+   flutter run
    ```
 
-flutter run
-\`\`\`
+### Android requirements
+
+The project uses `minSdkVersion` 21. When building or launching on an
+emulator, ensure that your Android SDK and device images are at least API
+level 21; older API levels will fail during Gradle setup.
 
 ---
 

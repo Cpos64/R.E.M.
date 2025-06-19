@@ -22,7 +22,11 @@ android {
 
     defaultConfig {
         applicationId = "com.example.rem"  // Update your package name here
-        minSdk = 19
+        // Firebase and several Flutter plugins now require API level 21 or
+        // higher. Using a lower minSdk results in build failures when Gradle
+        // tries to merge manifests from these libraries. Bump the value to 21
+        // so the app can run on modern Android emulators.
+        minSdk = 21
         targetSdk = 33
         versionCode = 1
         versionName = "1.0"
