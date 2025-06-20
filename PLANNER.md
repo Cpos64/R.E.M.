@@ -41,3 +41,9 @@
 
 [] Update loading screen whenn launching app 
 - instead of flutter logo, have REM logo
+
+[] Add "ChatSLEEPT" 
+- AI bot to help with answer sleep-related questions and interpret dreams
+
+[] Add social page like YT feed for dreams with sleep stats attached
+- Make it like youtube feed with thumbnails being AI generated pictures of dreams and title being title of dreams
