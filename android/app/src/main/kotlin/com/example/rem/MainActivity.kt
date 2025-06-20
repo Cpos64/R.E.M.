@@ -1,4 +1,4 @@
-package com.example.sleep_dream_social_app
+package com.example.rem
 
 import io.flutter.embedding.android.FlutterActivity
 

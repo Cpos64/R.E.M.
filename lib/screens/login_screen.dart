@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -49,37 +49,56 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _submit() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+Future<void> _submit() async {
+  setState(() {
+    _isLoading = true;
+    _error = null;
+  });
 
-    try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
+  final email = _emailController.text.trim();
+  final password = _passwordController.text.trim();
+  print('➡️ Attempting ${_isLogin ? 'sign-in' : 'sign-up'} with $email');
 
-      if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
-      } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
-      }
+  try {
+    // we declare this here so both branches can assign to it
+    late final UserCredential cred;
 
-      await _saveCredentials();
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _error = e.message;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Something went wrong. Please try again.';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+    if (_isLogin) {
+      cred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          )
+          .timeout(const Duration(seconds: 15));
+      print('✅ Sign-in succeeded! UID=${cred.user?.uid}');
+    } else {
+      cred = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: email,
+            password: password,
+          )
+          .timeout(const Duration(seconds: 15));
+      print('✅ Account creation succeeded! UID=${cred.user?.uid}');
     }
+
+    // on success, save creds if “remember me” was checked
+    await _saveCredentials();
+    // your StreamBuilder in main.dart will automatically navigate on auth change
+  } on TimeoutException {
+    print('⚠️ Authentication timed out after 15s');
+    setState(() => _error = 'Connection timed out. Please try again.');
+  } on FirebaseAuthException catch (e) {
+    print('❌ FirebaseAuthException: code=${e.code}, msg=${e.message}');
+    setState(() => _error = e.message);
+  } catch (e) {
+    print('❌ Unknown error: $e');
+    setState(() => _error = 'Something went wrong');
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
   
   @override
   Widget build(BuildContext context) {

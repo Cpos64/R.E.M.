@@ -8,8 +8,8 @@ plugins {
 
 android {
     namespace = "com.example.rem"  // Update your package name here
-    compileSdk = 33
-    ndkVersion = "23.1.7779620"
+    compileSdk = 35
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -26,7 +26,7 @@ android {
         // higher. Using a lower minSdk results in build failures when Gradle
         // tries to merge manifests from these libraries. Bump the value to 21
         // so the app can run on modern Android emulators.
-        minSdk = 21
+        minSdk = 23
         targetSdk = 33
         versionCode = 1
         versionName = "1.0"
@@ -52,4 +52,4 @@ flutter {
     source = "../.."
 }
 
-apply plugin: "com.google.gms.google-services"
+apply(plugin = "com.google.gms.google-services")
