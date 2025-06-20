@@ -38,3 +38,6 @@
 - hard to see labels on 30-d and 90-d charts
 
 [] Build Container (Dockerfile) for Codex to run Flutter commands
+
+[] Update loading screen whenn launching app 
+- instead of flutter logo, have REM logo

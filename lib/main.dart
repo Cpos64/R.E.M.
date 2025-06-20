@@ -73,9 +73,9 @@ class _MyAppState extends State<MyApp> {
           useMaterial3: true,
           colorSchemeSeed: Colors.indigo,
           textTheme: GoogleFonts.latoTextTheme(), // ✅ Optional custom font
-          cardTheme: CardTheme(
+          cardTheme: CardThemeData(
             elevation: 2,
-            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
         );
@@ -85,9 +85,9 @@ class _MyAppState extends State<MyApp> {
           useMaterial3: true,
           colorSchemeSeed: Colors.indigo,
           textTheme: GoogleFonts.latoTextTheme(ThemeData.dark().textTheme),
-          cardTheme: CardTheme(
+          cardTheme: CardThemeData(
             elevation: 2,
-            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
         );
