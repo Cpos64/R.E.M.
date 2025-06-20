@@ -106,7 +106,7 @@ flutter_native_splash:
   color: "#1B2A49"
 
   # path to your pillow-style REM logo
-  image: assets/images/REM_logo.png
+  image: assets/images/REM_LOGO.png
 
   # enable per-platform
   android: true
