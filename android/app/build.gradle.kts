@@ -46,6 +46,8 @@ dependencies {
     // Add Firebase SDKs you want to use
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+    // Required for Android 12+ splash screen APIs used by flutter_native_splash
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
 
 flutter {
