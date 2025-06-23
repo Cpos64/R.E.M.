@@ -13,14 +13,18 @@ class DreamCountLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showTitles = days.isNotEmpty;
+    final interval = showTitles ? (days.length / 5).ceilToDouble() : 1.0;
+
     return LineChart(
       LineChartData(
         titlesData: FlTitlesData(
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
-              showTitles: true,
-              interval: (days.length / 5).ceilToDouble(),
+              showTitles: showTitles,
+              interval: interval,
               getTitlesWidget: (value, meta) {
+                if (days.isEmpty) return const SizedBox.shrink();
                 final idx = value.toInt().clamp(0, days.length - 1);
                 final d = days[idx];
                 return Text('${d.month}/${d.day}');

@@ -327,7 +327,6 @@ Widget build(BuildContext context) {
           final allDocs = snap.data!.docs;
           // 1) filter
           final docs = _applyFilter(allDocs);
-          if (docs.isEmpty) return const Center(child: Text('No dreams yet.'));
 
           // 2) group by day
           final docsByDay = <DateTime,List<QueryDocumentSnapshot>>{};
@@ -399,34 +398,37 @@ return Column(
 
               // ── swipeable per-day list ──
               Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  itemCount: days.length,
-                  itemBuilder: (ctx, dayIdx) {
-                    final day = days[dayIdx];
-                    final entries = docsByDay[day]!;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // date header
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          child: Text(
-                            DateFormat.yMMMd().format(day),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                        DayDreamPager(
-                          entries: entries,
-                          onTapEntry:   _showDreamDetail,
-                          onEditEntry:  _editDream,
-                          onDeleteEntry: _deleteDream,
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                child: days.isEmpty
+                    ? const Center(child: Text('No dreams yet.'))
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemCount: days.length,
+                        itemBuilder: (ctx, dayIdx) {
+                          final day = days[dayIdx];
+                          final entries = docsByDay[day]!;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // date header
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 4),
+                                child: Text(
+                                  DateFormat.yMMMd().format(day),
+                                  style:
+                                      Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              DayDreamPager(
+                                entries: entries,
+                                onTapEntry: _showDreamDetail,
+                                onEditEntry: _editDream,
+                                onDeleteEntry: _deleteDream,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
               ),
             ],
           );

@@ -27,9 +27,10 @@ class DreamGenreTrendsChart extends StatelessWidget {
         titlesData: FlTitlesData(
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
-              showTitles: true,
+              showTitles: days.isNotEmpty,
               interval: 1,
               getTitlesWidget: (value, meta) {
+                if (days.isEmpty) return const SizedBox.shrink();
                 final idx = value.toInt().clamp(0, days.length - 1);
                 final d = days[idx];
                 return Text('${d.month}/${d.day}');
