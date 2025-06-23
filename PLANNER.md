@@ -47,3 +47,13 @@
 
 [] Add social page like YT feed for dreams with sleep stats attached
 - Make it like youtube feed with thumbnails being AI generated pictures of dreams and title being title of dreams
+
+[] Make logo appear on loading screen instead of Flutter icon
+
+[] Restructure app to have effective home screen and bottom navigation bar like other social media apps
+
+[] Add custom sleep genre options where user can add custom genres with correlating color
+
+[] Track moods and how well the user think they recovered/slept before glancing at statistics
+
+
