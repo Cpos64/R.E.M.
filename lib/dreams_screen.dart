@@ -384,20 +384,21 @@ final buckets = days.map((day) {
 return Column(
   children: [
     // ── Dream-Analytics pager ──
-    Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: SizedBox(
-        height: 300, // or whatever
-        child: DreamChartPager(
-          buckets: buckets,
-          days: days,
+      Expanded(
+        flex: 3,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: DreamChartPager(
+            buckets: buckets,
+            days: days,
+          ),
         ),
       ),
-    ),
               _buildSearchBar(),
 
               // ── swipeable per-day list ──
               Expanded(
+                flex: 2,
                 child: days.isEmpty
                     ? const Center(child: Text('No dreams yet.'))
                     : ListView.builder(
