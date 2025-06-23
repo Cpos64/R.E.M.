@@ -53,12 +53,6 @@ class _DreamChartPagerState extends State<DreamChartPager> {
 
   @override
   Widget build(BuildContext context) {
-    if (_filteredDays.isEmpty) {
-      return const Center(
-        child: Text('No dream data for this range'),
-      );
-    }
-
     return Column(
       children: [
         // 1) Title
