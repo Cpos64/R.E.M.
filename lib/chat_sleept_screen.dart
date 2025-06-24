@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/chat_bot_screen.dart';
 
 class ChatSleeptScreen extends StatelessWidget {
   const ChatSleeptScreen({super.key});
@@ -6,9 +7,8 @@ class ChatSleeptScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(
-        child: Text('ChatSLEEPT coming soon'),
-      ),
+      appBar: AppBar(title: Text('ChatSLEEPT')),
+      body: ChatBotScreen(),
     );
   }
 }
