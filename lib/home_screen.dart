@@ -3,6 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_service.dart';
+import 'view_dream_screen.dart';
 
 import '../widgets/multi_dream_entry_modal.dart';
 import 'screens/settings_screen.dart';
@@ -26,6 +29,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _reminderEnabled = false;
   bool _dreamPromptEnabled = true;
+  final FirestoreService _firestoreService = FirestoreService();
+
+  Map<String, dynamic>? _lastSleep;
+  List<QueryDocumentSnapshot> _recentDreams = [];
+  double _weekAvgMinutes = 0;
+  int _weekDreamCount = 0;
+  bool _loadingData = true;
 
   @override
   void initState() {
@@ -36,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _maybeShowDreamQuestion();
       });
     });
+    _fetchHomeData();
   }
 
   Future<void> _loadDreamPromptSetting() async {
@@ -110,6 +121,27 @@ void _openMultiDreamModal() {
     },
   );
 }
+
+  Future<void> _fetchHomeData() async {
+    final sleep = await _firestoreService.getMostRecentSleepLog();
+    final dreams = await _firestoreService.getRecentDreams();
+    final stats = await _firestoreService.getCurrentWeekStats();
+    setState(() {
+      _lastSleep = sleep;
+      _recentDreams = dreams;
+      _weekAvgMinutes = (stats['avgMinutes'] as num?)?.toDouble() ?? 0;
+      _weekDreamCount = stats['dreamCount'] as int? ?? 0;
+      _loadingData = false;
+    });
+  }
+
+  String _formatMinutes(double minutes) {
+    if (minutes <= 0) return 'Zzz';
+    final min = minutes.round();
+    final h = min ~/ 60;
+    final m = min % 60;
+    return '${h}h${m}m';
+  }
 
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
@@ -187,11 +219,16 @@ void _openMultiDreamModal() {
           children: [
             // ─── Sleep Summary ───
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.bedtime),
-                title: const Text('7h45m · Restful'),
-                subtitle: const Text('11:00PM–6:45AM'),
-              ),
+              child: _lastSleep == null
+                  ? const ListTile(
+                      leading: Icon(Icons.self_improvement),
+                      title: Text('Waiting for Sleep Data'),
+                    )
+                  : ListTile(
+                      leading: const Icon(Icons.bedtime),
+                      title: Text('${_lastSleep!['totalDuration']} · ${_lastSleep!['quality'] ?? ''}'),
+                      subtitle: Text('${_lastSleep!['timeAsleep'] ?? ''}–${_lastSleep!['timeAwake'] ?? ''}'),
+                    ),
             ),
             const SizedBox(height: 16),
 
@@ -200,16 +237,15 @@ void _openMultiDreamModal() {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/sleep_logs'),
-                  child: const Text('🛏️\nLog Sleep', textAlign: TextAlign.center),
+                  onPressed: () => Navigator.pushNamed(
+                      context, '/sleep_logs', arguments: {'add': true}),
+                  child:
+                      const Text('🛏️\nLog Sleep', textAlign: TextAlign.center),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/dreams'),
+                  onPressed: () => Navigator.pushNamed(
+                      context, '/dreams', arguments: {'add': true}),
                   child: const Text('💭\nRecord Dream', textAlign: TextAlign.center),
-                ),
-                ElevatedButton(
-                  onPressed: () {},
-                  child: const Text('🤖\nChat', textAlign: TextAlign.center),
                 ),
               ],
             ),
@@ -224,12 +260,42 @@ void _openMultiDreamModal() {
                   children: [
                     const Text('Recent Dreams:'),
                     const SizedBox(height: 8),
-                    const Text('▶︎ “Flying Over Oceans”'),
-                    const Text('▶︎ “Lost in a Maze”'),
+                    if (_recentDreams.isEmpty)
+                      const Text('No dreams yet.')
+                    else
+                      ..._recentDreams.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final title = data['title'] ?? '';
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ViewDreamScreen(
+                                  docId: doc.id,
+                                  title: title,
+                                  description: data['description'] ?? '',
+                                  timestamp:
+                                      (data['timestamp'] as Timestamp).toDate(),
+                                  tags: data.containsKey('genres')
+                                      ? (data['genres'] as List).cast<String>()
+                                      : [(data['genre'] as String?) ?? 'Other'],
+                                  sentimentScore:
+                                      (data['sentimentScore'] as num?)?.toDouble() ??
+                                          0.0,
+                                  recallRating:
+                                      (data['recallRating'] as num?)?.toInt() ?? 0,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Text('▶︎ "$title"'),
+                        );
+                      }).toList(),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {},
+                        onPressed: () => Navigator.pushNamed(context, '/dreams'),
                         child: const Text('See All →'),
                       ),
                     ),
@@ -257,9 +323,10 @@ void _openMultiDreamModal() {
             // ─── Weekly Stats ───
             Card(
               child: ListTile(
-                title: const Text('Weekly Stats:  Avg: 7h30m   Dreams: 5'),
+                title: Text(
+                    'Weekly Stats:  Avg: ${_formatMinutes(_weekAvgMinutes)}   Dreams: $_weekDreamCount'),
                 trailing: TextButton(
-                  onPressed: () {},
+                  onPressed: () => Navigator.pushNamed(context, '/stats'),
                   child: const Text('View Full Stats →'),
                 ),
               ),

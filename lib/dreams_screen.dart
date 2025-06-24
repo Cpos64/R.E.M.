@@ -27,6 +27,7 @@ class _DreamsScreenState extends State<DreamsScreen> {
   final _scrollController = ScrollController();
   String _filterKeyword = '';
   final List<String> _selectedTags = [];
+  bool _didInit = false;
 
 static const _genreOptions = dreamGenres;
 
@@ -50,6 +51,18 @@ Stream<QuerySnapshot> _dreamsStream() {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didInit) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map && args['add'] == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showAddDream());
+      }
+      _didInit = true;
+    }
   }
 
   @override

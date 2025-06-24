@@ -57,6 +57,10 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     super.didChangeDependencies();
     if (_isFirstLoad) {
       _loadSleepLogs();
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map && args['add'] == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showAddSleepDialog());
+      }
       _isFirstLoad = false;
     }
   }
