@@ -10,7 +10,7 @@ class ChatBotScreen extends StatefulWidget {
 }
 
 class _ChatBotScreenState extends State<ChatBotScreen> {
-  final _chatService = ChatService(baseUrl: 'https://your-api.com');
+  final _chatService = ChatService();
   final _controller = TextEditingController();
   final List<_Message> _messages = [];
   bool _loading = false;
