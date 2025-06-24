@@ -56,7 +56,15 @@ cupertino_icons: ^1.0.0
    flutter pub get
    ```
 
-3. **Firebase configuration**
+3. **OpenAI configuration**
+
+   Create a `.env` file in the project root and add your OpenAI API key:
+
+   ```bash
+   echo "OPENAI_API_KEY=your-key" > .env
+   ```
+
+4. **Firebase configuration**
 
    * Create a Firebase project.
    * Add Android, iOS, and Web apps in Firebase console.
@@ -65,7 +73,7 @@ cupertino_icons: ^1.0.0
    * For Web, update `index.html` Firebase config snippet in `/web` folder.
    * Create the composite Firestore indexes listed in [FIRESTORE_INDEXES.md](FIRESTORE_INDEXES.md).
 
-4. **Run the app**
+5. **Run the app**
 
    ```bash
    flutter run
