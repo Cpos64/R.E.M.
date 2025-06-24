@@ -6,6 +6,7 @@ import 'screens/login_screen.dart';
 import 'home_screen.dart';
 import 'dreams_screen.dart';
 import 'sleep_log_screen.dart';
+import 'main_navigation.dart';
 import 'firestore_service.dart';
 import 'package:google_fonts/google_fonts.dart'; // ✅ optional font
 
@@ -103,7 +104,7 @@ class _MyAppState extends State<MyApp> {
             darkTheme: darkTheme,
             themeMode: _isDarkTheme ? ThemeMode.dark : ThemeMode.light,
             home: isLoggedIn
-                ? HomeScreen(
+                ? MainNavigation(
                     toggleTheme: _toggleTheme,
                     isDarkTheme: _isDarkTheme,
                   )

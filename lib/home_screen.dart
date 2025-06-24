@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/multi_dream_entry_modal.dart';
 import 'screens/settings_screen.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(bool) toggleTheme;
@@ -156,32 +157,27 @@ void _openMultiDreamModal() {
     final rng = Random(seed);
     final quoteOfTheDay = quotes[rng.nextInt(quotes.length)];
 
+    final dateString = DateFormat('EEEE, MMM d').format(DateTime.now());
+
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.settings),
-          tooltip: 'Settings',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SettingsScreen(
-                isDarkTheme: widget.isDarkTheme,
-                toggleTheme: widget.toggleTheme,
-              ),
-            ),
-          ),
-        ),
-        title: const Text('R.E.M. Home'),
+        title: Text(dateString),
         actions: [
           IconButton(
-            icon: Icon(widget.isDarkTheme ? Icons.nights_stay : Icons.wb_sunny),
-            tooltip: 'Toggle theme',
-            onPressed: () => widget.toggleTheme(!widget.isDarkTheme),
+            icon: const Icon(Icons.notifications),
+            onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () => _logout(context),
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SettingsScreen(
+                  isDarkTheme: widget.isDarkTheme,
+                  toggleTheme: widget.toggleTheme,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -189,44 +185,59 @@ void _openMultiDreamModal() {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
-              'Welcome to R.E.M!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+            // ─── Sleep Summary ───
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.bedtime),
+                title: const Text('7h45m · Restful'),
+                subtitle: const Text('11:00PM–6:45AM'),
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
             // ─── Quick-Add Buttons ───
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                ElevatedButton.icon(
+                ElevatedButton(
                   onPressed: () => Navigator.pushNamed(context, '/sleep_logs'),
-                  icon: const Icon(Icons.bedtime, size: 32),
-                  label: const Text("Add Sleep", style: TextStyle(fontSize: 16)),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(140, 140),
-                    padding: const EdgeInsets.all(16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                  child: const Text('🛏️\nLog Sleep', textAlign: TextAlign.center),
                 ),
-                ElevatedButton.icon(
+                ElevatedButton(
                   onPressed: () => Navigator.pushNamed(context, '/dreams'),
-                  icon: const Icon(Icons.book, size: 32),
-                  label: const Text("Add Dream", style: TextStyle(fontSize: 16)),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(140, 140),
-                    padding: const EdgeInsets.all(16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                  child: const Text('💭\nRecord Dream', textAlign: TextAlign.center),
+                ),
+                ElevatedButton(
+                  onPressed: () {},
+                  child: const Text('🤖\nChat', textAlign: TextAlign.center),
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+
+            // ─── Recent Dreams ───
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Recent Dreams:'),
+                    const SizedBox(height: 8),
+                    const Text('▶︎ “Flying Over Oceans”'),
+                    const Text('▶︎ “Lost in a Maze”'),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {},
+                        child: const Text('See All →'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
 
             // ─── Quote of the Day ───
             Card(
@@ -241,15 +252,17 @@ void _openMultiDreamModal() {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
 
-            // ─── Bedtime Reminder Toggle ───
-            SwitchListTile(
-              title: const Text("Bedtime Reminder"),
-              subtitle: const Text("Notify me every night at 10:30 PM"),
-              value: _reminderEnabled,
-              onChanged: (v) => setState(() => _reminderEnabled = v),
-              secondary: const Icon(Icons.alarm),
+            // ─── Weekly Stats ───
+            Card(
+              child: ListTile(
+                title: const Text('Weekly Stats:  Avg: 7h30m   Dreams: 5'),
+                trailing: TextButton(
+                  onPressed: () {},
+                  child: const Text('View Full Stats →'),
+                ),
+              ),
             ),
           ],
         ),
