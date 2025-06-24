@@ -90,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               await _setPromptDate();
               Navigator.of(context).pop();
-              _openMultiDreamModal();
+              await _openMultiDreamModal();
             },
             child: const Text('Yes'),
           ),
@@ -99,8 +99,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-void _openMultiDreamModal() {
-  showModalBottomSheet(
+Future<void> _openMultiDreamModal() async {
+  await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -120,6 +120,7 @@ void _openMultiDreamModal() {
       );
     },
   );
+  await _fetchHomeData();
 }
 
   Future<void> _fetchHomeData() async {
@@ -135,8 +136,14 @@ void _openMultiDreamModal() {
     });
   }
 
+  Future<void> _navigateAndRefresh(String route,
+      {Map<String, dynamic>? args}) async {
+    await Navigator.pushNamed(context, route, arguments: args);
+    await _fetchHomeData();
+  }
+
   String _formatMinutes(double minutes) {
-    if (minutes <= 0) return 'Zzz';
+    if (minutes <= 0) return '---';
     final min = minutes.round();
     final h = min ~/ 60;
     final m = min % 60;
@@ -237,15 +244,16 @@ void _openMultiDreamModal() {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(
-                      context, '/sleep_logs', arguments: {'add': true}),
+                  onPressed: () =>
+                      _navigateAndRefresh('/sleep_logs', args: {'add': true}),
                   child:
                       const Text('🛏️\nLog Sleep', textAlign: TextAlign.center),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(
-                      context, '/dreams', arguments: {'add': true}),
-                  child: const Text('💭\nRecord Dream', textAlign: TextAlign.center),
+                  onPressed: () =>
+                      _navigateAndRefresh('/dreams', args: {'add': true}),
+                  child:
+                      const Text('💭\nRecord Dream', textAlign: TextAlign.center),
                 ),
               ],
             ),
@@ -295,7 +303,7 @@ void _openMultiDreamModal() {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () => Navigator.pushNamed(context, '/dreams'),
+                        onPressed: () => _navigateAndRefresh('/dreams'),
                         child: const Text('See All →'),
                       ),
                     ),
