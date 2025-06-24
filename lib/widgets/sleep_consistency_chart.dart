@@ -166,7 +166,7 @@ final step = days.length <= 7
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(left: 40.0),
+            padding: const EdgeInsets.fromLTRB(12.0, 0, 12.0, 0),
             child: BarChart(
               BarChartData(
                 barTouchData: BarTouchData(
@@ -248,7 +248,7 @@ final step = days.length <= 7
                     sideTitles: SideTitles(
                       showTitles: true,
                       interval: 6,
-                      reservedSize: 80,
+                      reservedSize: 40,
                       getTitlesWidget: (val, _) {
                         final hour = ((val % 24) + 24) % 24;
                         Widget label;
