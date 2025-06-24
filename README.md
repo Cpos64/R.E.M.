@@ -63,6 +63,7 @@ cupertino_icons: ^1.0.0
    * Download `google-services.json` (Android) and `GoogleService-Info.plist` (iOS).
    * Place them in `android/app/` and `ios/Runner/` respectively.
    * For Web, update `index.html` Firebase config snippet in `/web` folder.
+   * Create the composite Firestore indexes listed in [FIRESTORE_INDEXES.md](FIRESTORE_INDEXES.md).
 
 4. **Run the app**
 
