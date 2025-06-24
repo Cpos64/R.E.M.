@@ -56,4 +56,8 @@
 
 [] Track moods and how well the user think they recovered/slept before glancing at statistics
 
+[] Brainstorm ideas for the UI/look of the app 
 
+[] Use AI to determine Genre of dreams\
+
+[] Have way to store characters that people mention in there dreams so AI and readers of dreams know who you dreamed about. 
