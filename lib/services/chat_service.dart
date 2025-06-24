@@ -8,8 +8,10 @@ class ChatService {
   final String baseUrl;
 
   Future<String> sendChat(String message) async {
+    final chatUrl = '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/chat';
+    print('[ChatService] ➜ POST $chatUrl');   // ← new
     final res = await http.post(
-      Uri.parse('$baseUrl/chat'),
+      Uri.parse(chatUrl),
       headers: {'Content-Type':'application/json'},
       body: jsonEncode({'message': message}),
     );

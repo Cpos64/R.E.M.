@@ -21,3 +21,6 @@ windows/
 # Node modules
 node_modules/
 scripts/node_modules/
+
+# ignore my local environment file
+.env
