@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,6 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _reminderEnabled = false;
   bool _dreamPromptEnabled = true;
   final FirestoreService _firestoreService = FirestoreService();
+  StreamSubscription? _sleepSub;
+  StreamSubscription? _dreamSub;
 
   Map<String, dynamic>? _lastSleep;
   List<QueryDocumentSnapshot> _recentDreams = [];
@@ -47,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     });
     _fetchHomeData();
+    _startListeners();
   }
 
   Future<void> _loadDreamPromptSetting() async {
@@ -136,6 +140,30 @@ Future<void> _openMultiDreamModal() async {
     });
   }
 
+  void _startListeners() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    _sleepSub?.cancel();
+    _dreamSub?.cancel();
+
+    _sleepSub = FirebaseFirestore.instance
+        .collection('sleep_logs')
+        .where('userId', isEqualTo: uid)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((_) => _fetchHomeData());
+
+    _dreamSub = FirebaseFirestore.instance
+        .collection('dreams')
+        .where('userId', isEqualTo: uid)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((_) => _fetchHomeData());
+  }
+
   Future<void> _navigateAndRefresh(String route,
       {Map<String, dynamic>? args}) async {
     await Navigator.pushNamed(context, route, arguments: args);
@@ -161,6 +189,13 @@ Future<void> _openMultiDreamModal() async {
     );
     // Let auth state changes propagate
     await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  @override
+  void dispose() {
+    _sleepSub?.cancel();
+    _dreamSub?.cancel();
+    super.dispose();
   }
 
   @override
