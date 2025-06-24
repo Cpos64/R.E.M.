@@ -30,7 +30,7 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   String _format(double minutes) {
-    if (minutes <= 0) return 'Zzz';
+    if (minutes <= 0) return '---';
     final min = minutes.round();
     final h = min ~/ 60;
     final m = min % 60;
