@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-Future<void> _openMultiDreamModal() async {
+  Future<void> _openMultiDreamModal() async {
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -125,19 +125,25 @@ Future<void> _openMultiDreamModal() async {
     },
   );
   await _fetchHomeData();
-}
+  }
 
   Future<void> _fetchHomeData() async {
-    final sleep = await _firestoreService.getMostRecentSleepLog();
-    final dreams = await _firestoreService.getRecentDreams();
-    final stats = await _firestoreService.getCurrentWeekStats();
-    setState(() {
-      _lastSleep = sleep;
-      _recentDreams = dreams;
-      _weekAvgMinutes = (stats['avgMinutes'] as num?)?.toDouble() ?? 0;
-      _weekDreamCount = stats['dreamCount'] as int? ?? 0;
-      _loadingData = false;
-    });
+    setState(() => _loadingData = true);
+    try {
+      final sleep = await _firestoreService.getMostRecentSleepLog();
+      final dreams = await _firestoreService.getRecentDreams();
+      final stats = await _firestoreService.getCurrentWeekStats();
+
+      setState(() {
+        _lastSleep = sleep;
+        _recentDreams = dreams;
+        _weekAvgMinutes = (stats['avgMinutes'] as num?)?.toDouble() ?? 0;
+        _weekDreamCount = stats['dreamCount'] as int? ?? 0;
+        _loadingData = false;
+      });
+    } catch (e) {
+      setState(() => _loadingData = false);
+    }
   }
 
   void _startListeners() {
@@ -153,7 +159,9 @@ Future<void> _openMultiDreamModal() async {
         .orderBy('timestamp', descending: true)
         .limit(1)
         .snapshots()
-        .listen((_) => _fetchHomeData());
+        .listen((_) => _fetchHomeData(), onError: (_) {
+          setState(() => _loadingData = false);
+        });
 
     _dreamSub = FirebaseFirestore.instance
         .collection('dreams')
@@ -161,7 +169,9 @@ Future<void> _openMultiDreamModal() async {
         .orderBy('timestamp', descending: true)
         .limit(1)
         .snapshots()
-        .listen((_) => _fetchHomeData());
+        .listen((_) => _fetchHomeData(), onError: (_) {
+          setState(() => _loadingData = false);
+        });
   }
 
   Future<void> _navigateAndRefresh(String route,
@@ -261,16 +271,21 @@ Future<void> _openMultiDreamModal() async {
           children: [
             // ─── Sleep Summary ───
             Card(
-              child: _lastSleep == null
-                  ? const ListTile(
-                      leading: Icon(Icons.self_improvement),
-                      title: Text('Waiting for Sleep Data'),
+              child: _loadingData
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
                     )
-                  : ListTile(
-                      leading: const Icon(Icons.bedtime),
-                      title: Text('${_lastSleep!['totalDuration']} · ${_lastSleep!['quality'] ?? ''}'),
-                      subtitle: Text('${_lastSleep!['timeAsleep'] ?? ''}–${_lastSleep!['timeAwake'] ?? ''}'),
-                    ),
+                  : _lastSleep == null
+                      ? const ListTile(
+                          leading: Icon(Icons.self_improvement),
+                          title: Text('Waiting for Sleep Data'),
+                        )
+                      : ListTile(
+                          leading: const Icon(Icons.bedtime),
+                          title: Text('${_lastSleep!['totalDuration']} · ${_lastSleep!['quality'] ?? ''}'),
+                          subtitle: Text('${_lastSleep!['timeAsleep'] ?? ''}–${_lastSleep!['timeAwake'] ?? ''}'),
+                        ),
             ),
             const SizedBox(height: 16),
 
