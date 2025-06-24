@@ -9,6 +9,7 @@ import 'sleep_log_screen.dart';
 import 'main_navigation.dart';
 import 'firestore_service.dart';
 import 'package:google_fonts/google_fonts.dart'; // ✅ optional font
+import 'stats_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -112,6 +113,7 @@ class _MyAppState extends State<MyApp> {
             routes: {
               '/dreams': (context) => DreamsScreen(),
               '/sleep_logs': (context) => SleepLogScreen(),
+              '/stats': (context) => const StatsScreen(),
             },
           ),
         );

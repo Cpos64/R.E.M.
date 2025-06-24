@@ -347,6 +347,69 @@ Future<void> updateSleepLogAuto({
     await _firestore.collection('sleep_logs').doc(docId).delete();
   }
 
+  /// Fetch the most recent sleep log for the current user.
+  Future<Map<String, dynamic>?> getMostRecentSleepLog() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    final snap = await _firestore
+        .collection('sleep_logs')
+        .where('userId', isEqualTo: user.uid)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return snap.docs.first.data();
+  }
+
+  /// Fetch a limited number of recent dreams for the current user.
+  Future<List<QueryDocumentSnapshot>> getRecentDreams({int limit = 3}) async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+    final snap = await _firestore
+        .collection('dreams')
+        .where('userId', isEqualTo: user.uid)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs;
+  }
+
+  /// Compute average sleep duration and dream count for the current week.
+  Future<Map<String, dynamic>> getCurrentWeekStats() async {
+    final user = _auth.currentUser;
+    if (user == null) return {'avgMinutes': 0, 'dreamCount': 0};
+
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final startOfWeek = DateTime(monday.year, monday.month, monday.day);
+
+    final sleepSnap = await _firestore
+        .collection('sleep_logs')
+        .where('userId', isEqualTo: user.uid)
+        .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfWeek))
+        .get();
+
+    double totalMinutes = 0;
+    for (var doc in sleepSnap.docs) {
+      final data = doc.data();
+      totalMinutes += (data['totalMinutes'] as num?)?.toDouble() ??
+          parseToMinutes(data['totalDuration'] ?? '0h0m');
+    }
+
+    final dreamSnap = await _firestore
+        .collection('dreams')
+        .where('userId', isEqualTo: user.uid)
+        .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfWeek))
+        .get();
+
+    final avg = sleepSnap.docs.isNotEmpty ? totalMinutes / sleepSnap.docs.length : 0.0;
+
+    return {
+      'avgMinutes': avg,
+      'dreamCount': dreamSnap.docs.length,
+    };
+  }
+
   // -------- THEME PREFERENCES --------
 
   Future<void> saveUserTheme(bool isDarkTheme) async {
