@@ -284,6 +284,15 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
               HapticFeedback.mediumImpact();
               try {
                 final parsedDate = DateFormat.yMd().parse(_dateController.text.trim());
+                final now = DateTime.now();
+                final fullDate = DateTime(
+                  parsedDate.year,
+                  parsedDate.month,
+                  parsedDate.day,
+                  now.hour,
+                  now.minute,
+                  now.second,
+                );
                 await _firestoreService.saveSleepLogAuto(
                   totalDuration: _durationController.text.trim(),
                   deepSleep:     _deepController.text.trim(),
@@ -294,7 +303,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                   timeAwake:     _wakeController.text.trim(),
                   quality:       _qualityController.text.trim(),
                   notes:         _notesController.text.trim(),
-                  date:          parsedDate,
+                  date:          fullDate,
                 );
                 // clear
                 _dateController.text = DateFormat.yMd().format(DateTime.now());
@@ -490,6 +499,14 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
             child: Text('Save'),
             onPressed: () async {
               final newDate = DateFormat.yMd().parse(editDateController.text);
+              final fullDate = DateTime(
+                newDate.year,
+                newDate.month,
+                newDate.day,
+                currentDate.hour,
+                currentDate.minute,
+                currentDate.second,
+              );
               await _firestoreService.updateSleepLogAuto(
                 docId:         docId,
                 totalDuration: editTotalController.text.trim(),
@@ -501,7 +518,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 timeAwake:     editAwakeTimeController.text.trim(),
                 quality:       editQualityController.text.trim(),
                 notes:         editNotesController.text.trim(),
-                date:          newDate,
+                date:          fullDate,
               );
               Navigator.pop(context);
               _loadSleepLogs();
