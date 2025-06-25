@@ -10,14 +10,12 @@ import 'main_navigation.dart';
 import 'firestore_service.dart';
 import 'package:google_fonts/google_fonts.dart'; // ✅ optional font
 import 'stats_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 

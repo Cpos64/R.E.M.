@@ -2,15 +2,31 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+const _defaultChatModel  = String.fromEnvironment('OPENAI_CHAT_MODEL',  defaultValue: 'gpt-3.5-turbo');
+const _defaultImageModel = String.fromEnvironment('OPENAI_IMAGE_MODEL', defaultValue: 'dall-e-3');
 
 class ChatService {
-  ChatService({http.Client? client})
-      : _client = client ?? http.Client(),
-        _apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
-
+  // 1) Use dart-define instead of dotenv:
+  static const _apiKey = String.fromEnvironment('OPENAI_API_KEY');
   final http.Client _client;
-  final String _apiKey;
+
+  ChatService({http.Client? client})
+      : _client = client ?? http.Client() {
+    if (_apiKey.isEmpty) {
+      throw Exception(
+        'Missing OPENAI_API_KEY. '
+        'Pass it via --dart-define, e.g. '
+        'flutter run --dart-define=OPENAI_API_KEY=sk-xxx',
+      );
+    }
+  }
+
+  Uri get _chatEndpoint =>
+      Uri.parse('https://api.openai.com/v1/chat/completions');
+
+  Uri get _imageEndpoint =>
+      Uri.parse('https://api.openai.com/v1/images/generations');
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -19,10 +35,10 @@ class ChatService {
 
   Future<String> sendChat(String message) async {
     final res = await _client.post(
-      Uri.parse('https://api.openai.com/v1/chat/completions'),
+      _chatEndpoint,
       headers: _headers,
       body: jsonEncode({
-        'model': 'gpt-3.5-turbo',
+        'model': _defaultChatModel,
         'messages': [
           {'role': 'user', 'content': message}
         ],
@@ -37,16 +53,13 @@ class ChatService {
 
   Future<String> interpretDream(String dream) async {
     final res = await _client.post(
-      Uri.parse('https://api.openai.com/v1/chat/completions'),
+      _chatEndpoint,
       headers: _headers,
       body: jsonEncode({
-        'model': 'gpt-3.5-turbo',
+        'model': _defaultChatModel,
         'messages': [
-          {
-            'role': 'system',
-            'content': "Interpret the user's dream."
-          },
-          {'role': 'user', 'content': dream}
+          { 'role': 'system', 'content': "Interpret the user's dream." },
+          { 'role': 'user',   'content': dream },
         ],
       }),
     );
@@ -59,9 +72,10 @@ class ChatService {
 
   Future<String> generateImage(String dream) async {
     final res = await _client.post(
-      Uri.parse('https://api.openai.com/v1/images/generations'),
+      _imageEndpoint,
       headers: _headers,
       body: jsonEncode({
+        'model': _defaultImageModel, 
         'prompt': dream,
         'n': 1,
         'size': '512x512',
