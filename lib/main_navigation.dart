@@ -5,6 +5,7 @@ import 'sleep_log_screen.dart';
 import 'dreams_screen.dart';
 import 'social_screen.dart';
 import 'chat_sleept_screen.dart';
+import 'me_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   final Function(bool) toggleTheme;
@@ -33,6 +34,7 @@ class _MainNavigationState extends State<MainNavigation> {
       const DreamsScreen(),
       const SocialScreen(),
       const ChatSleeptScreen(),
+      const MeScreen(),
     ];
   }
 
@@ -59,6 +61,7 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(icon: Text('💭', style: TextStyle(fontSize: 24)), label: 'Dream'),
           BottomNavigationBarItem(icon: Text('👥', style: TextStyle(fontSize: 24)), label: 'Social'),
           BottomNavigationBarItem(icon: Text('🤖', style: TextStyle(fontSize: 24)), label: 'ChatSLEEPT'),
+          BottomNavigationBarItem(icon: Text('🙋', style: TextStyle(fontSize: 24)), label: 'Me'),
         ],
       ),
     );

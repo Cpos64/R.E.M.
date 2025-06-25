@@ -410,6 +410,76 @@ Future<void> updateSleepLogAuto({
     };
   }
 
+  // -------- SOCIAL / FRIEND FEATURES --------
+
+  /// Stream a feed of all dreams that have `isShared` set to true.
+  Stream<QuerySnapshot> sharedDreamsStream() {
+    return _firestore
+        .collection('dreams')
+        .where('isShared', isEqualTo: true)
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  /// Search users by email prefix.
+  Stream<QuerySnapshot> searchUsers(String query) {
+    if (query.isEmpty) return const Stream.empty();
+    final end = '${query}\uf8ff';
+    return _firestore
+        .collection('users')
+        .orderBy('email')
+        .startAt([query]).endAt([end]).limit(10).snapshots();
+  }
+
+  /// Toggle like for a dream. Likes are stored as an array of userIds.
+  Future<void> toggleLike(String dreamId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    final ref = _firestore.collection('dreams').doc(dreamId);
+    final doc = await ref.get();
+    final likes = List<String>.from(doc.data()?['likes'] ?? []);
+    final isLiked = likes.contains(uid);
+    await ref.update({
+      'likes': isLiked
+          ? FieldValue.arrayRemove([uid])
+          : FieldValue.arrayUnion([uid])
+    });
+  }
+
+  /// Add a comment to `dreams/{id}/comments` sub-collection.
+  Future<void> addComment(String dreamId, String text) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || text.trim().isEmpty) return;
+    await _firestore
+        .collection('dreams')
+        .doc(dreamId)
+        .collection('comments')
+        .add({
+      'userId': uid,
+      'text': text.trim(),
+      'timestamp': Timestamp.now(),
+    });
+  }
+
+  /// Stream comments for a dream.
+  Stream<QuerySnapshot> commentsStream(String dreamId) {
+    return _firestore
+        .collection('dreams')
+        .doc(dreamId)
+        .collection('comments')
+        .orderBy('timestamp', descending: false)
+        .snapshots();
+  }
+
+  /// Count total dreams for a user.
+  Future<int> dreamCountForUser(String uid) async {
+    final snap = await _firestore
+        .collection('dreams')
+        .where('userId', isEqualTo: uid)
+        .get();
+    return snap.docs.length;
+  }
+
   // -------- THEME PREFERENCES --------
 
   Future<void> saveUserTheme(bool isDarkTheme) async {
