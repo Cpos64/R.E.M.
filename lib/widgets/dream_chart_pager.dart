@@ -50,6 +50,7 @@ class _DreamChartPagerState extends State<DreamChartPager> {
         // Chart
         Expanded(
           child: DreamCountLineChart(
+            key: ValueKey(_filteredDays.length),
             buckets: _filteredBuckets,
             days: _filteredDays,
           ),
