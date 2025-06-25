@@ -352,8 +352,10 @@ Widget build(BuildContext context) {
             ..sort((a, b) => b.compareTo(a));  // most recent date first
 
           // ── Build contiguous days for the chart ──
-          final minDay = listDays.isEmpty ? DateTime.now() : listDays.last;
-          final maxDay = DateTime.now();
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final minDay = listDays.isEmpty ? today : listDays.last;
+          final maxDay = today;
           final chartDays = <DateTime>[];
           for (var d = maxDay;
               !d.isBefore(minDay);
