@@ -16,9 +16,18 @@ class DreamCountLineChart extends StatelessWidget {
     final showTitles = days.isNotEmpty;
     final interval = showTitles ? (days.length / 5).ceilToDouble() : 1.0;
 
-    return LineChart(
-      LineChartData(
+    return BarChart(
+      BarChartData(
+        minY: 0,
         titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              reservedSize: 28,
+              getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
+            ),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: showTitles,
@@ -32,15 +41,20 @@ class DreamCountLineChart extends StatelessWidget {
             ),
           ),
         ),
-        lineBarsData: [
-          LineChartBarData(
-            isCurved: true,
-            spots: List.generate(days.length, (i) {
-              final count = buckets[i]['totalCount'] as int;
-              return FlSpot(i.toDouble(), count.toDouble());
-            }),
-          ),
-        ],
+        barGroups: List.generate(days.length, (i) {
+          final count = buckets[i]['totalCount'] as int;
+          return BarChartGroupData(
+            x: i,
+            barRods: [
+              BarChartRodData(
+                toY: count.toDouble(),
+                width: 12,
+                borderRadius: BorderRadius.circular(2),
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
