@@ -299,12 +299,12 @@ bottomTitles: AxisTitles(
                   ],
                 ),
                 extraLinesData: ExtraLinesData(
+                  extraLinesOnTop: false,
                   horizontalLines: [
                     HorizontalLine(
                       y: avgBed,
                       color: Colors.white,
                       strokeWidth: 1,
-                      dashArray: [4, 4],
                       label: HorizontalLineLabel(
                         show: true,
                         alignment: Alignment.bottomLeft,
@@ -316,7 +316,6 @@ bottomTitles: AxisTitles(
                       y: avgAsleep,
                       color: Colors.white,
                       strokeWidth: 1,
-                      dashArray: [4, 4],
                       label: HorizontalLineLabel(
                         show: true,
                         alignment: Alignment.topLeft,
@@ -328,6 +327,7 @@ bottomTitles: AxisTitles(
                       y: avgWake,
                       color: Colors.white,
                       strokeWidth: 1,
+                      dashArray: [4, 4],
                       label: HorizontalLineLabel(
                         show: true,
                         alignment: Alignment.bottomLeft,
@@ -337,7 +337,7 @@ bottomTitles: AxisTitles(
                     ),
                   ],
                 ),
-                borderData: FlBorderData(show: true),
+                borderData: FlBorderData(show: false),
               ),
             ),
           ),
