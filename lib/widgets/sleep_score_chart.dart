@@ -206,7 +206,7 @@ bottomTitles: AxisTitles(
                   ),
                 ],
 
-                borderData: FlBorderData(show: true),
+                borderData: FlBorderData(show: false),
               ),
             ),
           ),
