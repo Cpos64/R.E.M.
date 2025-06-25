@@ -348,12 +348,22 @@ Widget build(BuildContext context) {
             final day = DateTime(ts.year,ts.month,ts.day);
             docsByDay.putIfAbsent(day,()=>[]).add(d);
           }
-          final days = docsByDay.keys.toList()
+          final listDays = docsByDay.keys.toList()
             ..sort((a, b) => b.compareTo(a));  // most recent date first
 
-// 4a) build buckets
-final buckets = days.map((day) {
-  final list = docsByDay[day]!;
+          // ── Build contiguous days for the chart ──
+          final minDay = listDays.isEmpty ? DateTime.now() : listDays.last;
+          final maxDay = DateTime.now();
+          final chartDays = <DateTime>[];
+          for (var d = maxDay;
+              !d.isBefore(minDay);
+              d = d.subtract(const Duration(days: 1))) {
+            chartDays.add(d);
+          }
+
+// 4a) build buckets for chartDays
+final chartBuckets = chartDays.map((day) {
+  final list = docsByDay[day] ?? <QueryDocumentSnapshot>[];
 
   // 1) compute genreCounts, recallRatings, wordCounts
   final genreCounts = <String,int>{};
@@ -392,13 +402,16 @@ final buckets = days.map((day) {
   };
 }).toList();
 
+          final days = listDays;
+          final buckets = chartBuckets;
+
 
 // 4b) render column:
 return Column(
   children: [
     // ── Dream-Analytics pager ──
       Expanded(
-        flex: 3,
+        flex: 4,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: DreamChartPager(
