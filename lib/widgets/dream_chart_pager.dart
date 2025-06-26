@@ -5,12 +5,10 @@ import 'dream_count_line_chart.dart';
 
 class DreamChartPager extends StatefulWidget {
   final List<Map<String, dynamic>> buckets;
-  final List<DateTime> days;
-
+  // NOTE: we no longer need an incoming `days` list here
   const DreamChartPager({
     Key? key,
     required this.buckets,
-    required this.days,
   }) : super(key: key);
 
   @override
@@ -20,22 +18,34 @@ class DreamChartPager extends StatefulWidget {
 class _DreamChartPagerState extends State<DreamChartPager> {
   int _windowDays = 7;
 
-  /// Returns only the last `_windowDays` worth of buckets+days
+  /// 1) Generate exactly `_windowDays` consecutive calendar days (no gaps).
   List<DateTime> get _filteredDays {
-    final cutoff = DateTime.now().subtract(Duration(days: _windowDays - 1));
-    return widget.days.where((d) => !d.isBefore(cutoff)).toList();
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day)
+        .subtract(Duration(days: _windowDays - 1));
+    return List.generate(_windowDays, (i) => start.add(Duration(days: i)));
   }
 
-  List<Map<String, dynamic>> get _filteredBuckets {
-    final validDays = _filteredDays.toSet();
-    return widget.buckets.where((b) {
-      final d = b['date'] as DateTime;
-      return validDays.contains(d);
+  /// 2) Build one bucket per day, filling zeros for missing entries.
+  List<Map<String, dynamic>> get _alignedBuckets {
+    // build a lookup from date → count
+    final map = <DateTime, int>{
+      for (var b in widget.buckets)
+        (b['date'] as DateTime): (b['totalCount'] as int)
+    };
+    return _filteredDays.map((day) {
+      return {
+        'date': day,
+        'totalCount': map[day] ?? 0,
+      };
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final days = _filteredDays;
+    final buckets = _alignedBuckets;
+
     return Column(
       children: [
         // Title
@@ -50,13 +60,13 @@ class _DreamChartPagerState extends State<DreamChartPager> {
         // Chart
         Expanded(
           child: DreamCountLineChart(
-            key: ValueKey(_filteredDays.length),
-            buckets: _filteredBuckets,
-            days: _filteredDays,
+            key: ValueKey(days.length),  // forces a rebuild/animation when window size changes
+            days: days,
+            buckets: buckets,
           ),
         ),
 
-        // Toggle buttons for window size
+        // Toggle buttons
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: ToggleButtons(

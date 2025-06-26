@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../firestore_service.dart';
 import '../widgets/dream_entry_card.dart';
-import '../widgets/dream_chart_pager.dart';
 import '../widgets/dream_form.dart';
 import '../widgets/multi_dream_entry_modal.dart';
 import '../widgets/day_dream_pager.dart';
@@ -411,17 +410,6 @@ final chartBuckets = chartDays.map((day) {
 // 4b) render column:
 return Column(
   children: [
-    // ── Dream-Analytics pager ──
-      Expanded(
-        flex: 4,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: DreamChartPager(
-            buckets: buckets,
-            days: days,
-          ),
-        ),
-      ),
               _buildSearchBar(),
 
               // ── swipeable per-day list ──

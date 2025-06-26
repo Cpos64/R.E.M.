@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'sleep_log_screen.dart';
 import 'dreams_screen.dart';
-import 'social_screen.dart';
-import 'chat_sleept_screen.dart';
+import 'groups_screen.dart';
 import 'me_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -32,8 +31,7 @@ class _MainNavigationState extends State<MainNavigation> {
       HomeScreen(toggleTheme: widget.toggleTheme, isDarkTheme: widget.isDarkTheme),
       const SleepLogScreen(),
       const DreamsScreen(),
-      const SocialScreen(),
-      const ChatSleeptScreen(),
+      const GroupsScreen(),
       const MeScreen(),
     ];
   }
@@ -55,13 +53,29 @@ class _MainNavigationState extends State<MainNavigation> {
         currentIndex: _currentIndex,
         onTap: _onTap,
         type: BottomNavigationBarType.fixed,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Text('🏠', style: TextStyle(fontSize: 24)), label: 'Home'),
-          BottomNavigationBarItem(icon: Text('🛏️', style: TextStyle(fontSize: 24)), label: 'Sleep'),
-          BottomNavigationBarItem(icon: Text('💭', style: TextStyle(fontSize: 24)), label: 'Dream'),
-          BottomNavigationBarItem(icon: Text('👥', style: TextStyle(fontSize: 24)), label: 'Social'),
-          BottomNavigationBarItem(icon: Text('🤖', style: TextStyle(fontSize: 24)), label: 'ChatSLEEPT'),
-          BottomNavigationBarItem(icon: Text('🙋', style: TextStyle(fontSize: 24)), label: 'Me'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.hotel),
+            label: 'Sleep',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.cloud),
+            label: 'Dreams',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.group),
+            label: 'Groups',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'You',
+          ),
         ],
       ),
     );
