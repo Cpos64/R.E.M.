@@ -306,7 +306,7 @@ bottomTitles: AxisTitles(
                       color: Colors.white,
                       strokeWidth: 1,
                       label: HorizontalLineLabel(
-                        show: true,
+                        show: false,
                         alignment: Alignment.bottomLeft,
                         labelResolver: (_) => avgBedStr,
                         style: const TextStyle(color: Colors.white70, fontSize: 10),
@@ -317,7 +317,7 @@ bottomTitles: AxisTitles(
                       color: Colors.white,
                       strokeWidth: 1,
                       label: HorizontalLineLabel(
-                        show: true,
+                        show: false,
                         alignment: Alignment.topLeft,
                         labelResolver: (_) => avgAsleepStr,
                         style: const TextStyle(color: Colors.white70, fontSize: 10),
@@ -329,7 +329,7 @@ bottomTitles: AxisTitles(
                       strokeWidth: 1,
                       dashArray: [4, 4],
                       label: HorizontalLineLabel(
-                        show: true,
+                        show: false,
                         alignment: Alignment.bottomLeft,
                         labelResolver: (_) => avgWakeStr,
                         style: const TextStyle(color: Colors.white70, fontSize: 10),

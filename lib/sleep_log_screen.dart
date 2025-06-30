@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'firestore_service.dart';
 import 'widgets/sleep_score_chart.dart';
-import 'widgets/sleep_chart_pager.dart';
 import 'widgets/sleep_entry_card.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -38,7 +37,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   late Future<List<QueryDocumentSnapshot>> _sleepLogsFuture;
   bool _isFirstLoad = true;
-  int _selectedWindow = 7;
+  int selectedDays = 7;
 
   // controllers for Add dialog
   final _durationController = TextEditingController();
@@ -537,70 +536,215 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sleep Log')),
+      appBar: AppBar(title: const Text('Sleep Dashboard')),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSleepDialog,
         child: const Icon(Icons.add),
       ),
-      body: Column(
-        children: [
-          // ── Charts + Toggle (fills top half) ──
-          Expanded(
-            flex: 3,
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _firestoreService.watchLogsForChart(_selectedWindow),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [7, 30, 90].map((value) {
+                  final sel = value == selectedDays;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: ChoiceChip(
+                      label: Text('$value d'),
+                      selected: sel,
+                      onSelected: (_) => setState(() => selectedDays = value),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _firestoreService.watchLogsForChart(selectedDays),
               builder: (ctx, snap) {
                 if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-                if (!snap.hasData) return Center(child: CircularProgressIndicator());
+                if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+
                 final data = snap.data!;
-                // Always show the chart pager so the user can switch windows
-                // even when the current range has no entries.
-                return SleepChartPager(
-                  sleepData: data,
-                  selectedWindow: _selectedWindow,
-                  onWindowChanged: (w) => setState(() => _selectedWindow = w),
+                final today = DateTime.now();
+                final windowStart = DateTime(today.year, today.month, today.day)
+                    .subtract(Duration(days: selectedDays - 1));
+                final days = List<DateTime>.generate(selectedDays,
+                    (i) => windowStart.add(Duration(days: i)));
+                final filtered = data.where((entry) {
+                  final raw = entry['date'];
+                  final entryDate = raw is DateTime
+                      ? raw
+                      : DateTime.parse(raw as String).toLocal();
+                  return !entryDate.isBefore(windowStart) && !entryDate.isAfter(today);
+                }).toList();
+                final buckets = List<Map<String, dynamic>?>.generate(
+                  selectedDays,
+                  (i) {
+                    final day = days[i];
+                    for (var entry in filtered) {
+                      final raw = entry['date'];
+                      final d = raw is DateTime ? raw : DateTime.parse(raw as String);
+                      if (d.year == day.year && d.month == day.month && d.day == day.day) {
+                        return entry;
+                      }
+                    }
+                    return null;
+                  },
+                );
+                final valid = buckets.where((e) => e != null).cast<Map<String, dynamic>>().toList();
+                double avgScore = 0;
+                double avgStageDuration = 0;
+                double avgConsistency = 0;
+                if (valid.isNotEmpty) {
+                  avgScore = valid
+                          .map((e) => (e['sleepScore'] as num?)?.toDouble() ?? 0)
+                          .reduce((a, b) => a + b) /
+                      valid.length;
+                  avgStageDuration = valid
+                          .map((e) => _parseToMinutes(e['totalDuration'] ?? '0h0m') / 60.0)
+                          .reduce((a, b) => a + b) /
+                      valid.length;
+                  double sumBed = 0, sumWake = 0;
+                  double _parse(String? t) {
+                    if (t == null || t.isEmpty) return 0.0;
+                    final iso = DateTime.tryParse(t);
+                    if (iso != null) return iso.hour + iso.minute / 60.0;
+                    try {
+                      final dt = DateFormat.jm().parse(t);
+                      return dt.hour + dt.minute / 60.0;
+                    } catch (_) {
+                      return 0.0;
+                    }
+                  }
+                  for (var e in valid) {
+                    final bed = _parse(e['timeInBed'] as String?);
+                    final wake = _parse(e['timeAwake'] as String?);
+                    final bedRel = bed > 12 ? bed - 24 : bed;
+                    sumBed += bedRel;
+                    sumWake += wake;
+                  }
+                  final avgBed = sumBed / valid.length;
+                  final avgWake = sumWake / valid.length;
+                  double _subC(int diff) {
+                    if (diff <= consistencyCutoff ~/ 2) {
+                      return maxConsistencyHalfPts;
+                    } else if (diff <= consistencyCutoff) {
+                      return (consistencyCutoff - diff) / (consistencyCutoff ~/ 2) * maxConsistencyHalfPts;
+                    } else {
+                      return 0.0;
+                    }
+                  }
+                  double total = 0;
+                  for (var e in valid) {
+                    final bed = _parse(e['timeInBed'] as String?);
+                    final wake = _parse(e['timeAwake'] as String?);
+                    final bedRel = bed > 12 ? bed - 24 : bed;
+                    final bd = ((bedRel - avgBed).abs() * 60).round();
+                    final wd = ((wake - avgWake).abs() * 60).round();
+                    total += _subC(bd) + _subC(wd);
+                  }
+                  avgConsistency = total / valid.length / (2 * maxConsistencyHalfPts) * 100;
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: 260,
+                      child: SleepScoreChart(buckets: buckets, days: days),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Text(
+                        'Average Sleep Score: ${avgScore.toStringAsFixed(1)}',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 260,
+                      child: SleepStageBarChart(buckets: buckets, days: days),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Text(
+                        'Average Stage Duration: ${avgStageDuration.toStringAsFixed(1)}h',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 380,
+                      child: SleepConsistencyChart(buckets: buckets, days: days),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Text(
+                        'Average Consistency: ${avgConsistency.toStringAsFixed(1)}%',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
-          ),
-
-          // ── Logs list (fills bottom half) ──
-          Expanded(
-            flex: 2,
-            child: FutureBuilder<List<QueryDocumentSnapshot>>(
+            FutureBuilder<List<QueryDocumentSnapshot>>(
               future: _sleepLogsFuture,
               builder: (ctx, snap) {
-                if (snap.connectionState == ConnectionState.waiting)
-                  return Center(child: CircularProgressIndicator());
-                if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(child: Text('Error: ${snap.error}')),
+                  );
+                }
                 final logs = snap.data ?? [];
-                if (logs.isEmpty) return Center(child: Text('No sleep logs saved yet.'));
+                final cutoff = DateTime.now().subtract(Duration(days: selectedDays));
+                final filteredLogs = logs.where((doc) {
+                  final ts = (doc.data()['timestamp'] as Timestamp?)?.toDate();
+                  return ts != null && ts.isAfter(cutoff);
+                }).toList();
+                if (filteredLogs.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: Text('No sleep logs saved yet.')),
+                  );
+                }
                 return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
-                  itemCount: logs.length,
+                  itemCount: filteredLogs.length,
                   itemBuilder: (ctx, i) {
-                    final doc = logs[i];
+                    final doc = filteredLogs[i];
                     final d = doc.data() as Map<String, dynamic>;
                     final ts = (d['timestamp'] as Timestamp?)?.toDate();
                     final date = ts == null ? 'No Date' : DateFormat.yMMMd().format(ts);
                     return SleepEntryCard(
-                      date:       date,
-                      duration:   d['totalDuration'] ?? '—',
-                      quality:    d['quality']       ?? '—',
-                      sleepScore: (d['sleepScore']   as num?)?.toString(),
+                      date: date,
+                      duration: d['totalDuration'] ?? '—',
+                      quality: d['quality'] ?? '—',
+                      sleepScore: (d['sleepScore'] as num?)?.toString(),
                       onEdit: () {
                         final ts = (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
                         _editSleepLog(
                           doc.id,
                           d['totalDuration'] ?? '',
-                          d['deepSleep']     ?? '',
-                          d['remSleep']      ?? '',
-                          d['awakeTime']     ?? '',
-                          d['timeInBed']     ?? '',
-                          d['timeAsleep']    ?? '',
-                          d['timeAwake']     ?? '',
-                          d['quality']       ?? '',
-                          d['notes']         ?? '',
+                          d['deepSleep'] ?? '',
+                          d['remSleep'] ?? '',
+                          d['awakeTime'] ?? '',
+                          d['timeInBed'] ?? '',
+                          d['timeAsleep'] ?? '',
+                          d['timeAwake'] ?? '',
+                          d['quality'] ?? '',
+                          d['notes'] ?? '',
                           ts,
                         );
                       },
@@ -610,8 +754,8 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 );
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
