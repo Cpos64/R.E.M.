@@ -33,22 +33,22 @@ class _SleepChartPagerState extends State<SleepChartPager> {
   }
 
   int _bucketSizeForWindow(int window) {
-    if (window == 90) return 7;
-    if (window == 365) return 14;
+    if (window == 90 || window == 365) return 7;
     return 1;
   }
 
-  double _parseTimeStr(String? text) {
-    if (text == null || text.isEmpty) return 0.0;
+  DateTime? _parseTimeObj(String? text) {
+    if (text == null || text.isEmpty) return null;
     final iso = DateTime.tryParse(text);
-    if (iso != null) return iso.hour + iso.minute / 60.0;
+    if (iso != null) return iso;
     try {
-      final dt = DateFormat.jm().parse(text);
-      return dt.hour + dt.minute / 60.0;
+      return DateFormat.jm().parse(text);
     } catch (_) {
-      return 0.0;
+      return null;
     }
   }
+
+  int _toMinutes(DateTime? dt) => dt == null ? 0 : dt.hour * 60 + dt.minute;
 
   String _fmtDuration(double minutes) {
     final h = minutes ~/ 60;
@@ -105,9 +105,18 @@ class _SleepChartPagerState extends State<SleepChartPager> {
         sumRem += _parseToMinutes(e['remSleep'] ?? '0h0m').toDouble();
         sumLight += _parseToMinutes(e['lightSleep'] ?? '0h0m').toDouble();
         sumAwake += _parseToMinutes(e['awakeTime'] ?? '0h0m').toDouble();
-        sumBed += _parseTimeStr(e['timeInBed'] as String?);
-        sumAsleep += _parseTimeStr(e['timeAsleep'] as String?);
-        sumWake += _parseTimeStr(e['timeAwake'] as String?);
+
+        final bedObj = _parseTimeObj(e['timeInBed'] as String?);
+        final asleepObj = _parseTimeObj(e['timeAsleep'] as String?);
+        final wakeObj = _parseTimeObj(e['timeAwake'] as String?);
+        final bedMin = _toMinutes(bedObj);
+        var asleepMin = _toMinutes(asleepObj);
+        var wakeMin = _toMinutes(wakeObj);
+        if (asleepObj != null && asleepMin < bedMin) asleepMin += 1440;
+        if (wakeObj != null && wakeMin < bedMin) wakeMin += 1440;
+        sumBed += bedMin.toDouble();
+        sumAsleep += asleepMin.toDouble();
+        sumWake += wakeMin.toDouble();
       }
 
       buckets.add({
@@ -118,9 +127,9 @@ class _SleepChartPagerState extends State<SleepChartPager> {
         'remSleep': _fmtDuration(sumRem / len),
         'lightSleep': _fmtDuration(sumLight / len),
         'awakeTime': _fmtDuration(sumAwake / len),
-        'timeInBed': _fmtTime(sumBed / len),
-        'timeAsleep': _fmtTime(sumAsleep / len),
-        'timeAwake': _fmtTime(sumWake / len),
+        'timeInBed': _fmtTime(((sumBed / len) % 1440) / 60.0),
+        'timeAsleep': _fmtTime(((sumAsleep / len) % 1440) / 60.0),
+        'timeAwake': _fmtTime(((sumWake / len) % 1440) / 60.0),
       });
     }
 
