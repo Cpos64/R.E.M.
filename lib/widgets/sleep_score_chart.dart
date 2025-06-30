@@ -131,7 +131,7 @@ bottomTitles: AxisTitles(
                       strokeWidth: 1,
                       dashArray: [4, 4],
                       label: HorizontalLineLabel(
-                        show: true,
+                        show: false,
                         alignment: Alignment.topLeft,
                         labelResolver: (_) => 'Avg: ${avgScore.round()}',
                         style: const TextStyle(

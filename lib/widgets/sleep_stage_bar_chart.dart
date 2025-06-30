@@ -343,7 +343,7 @@ bottomTitles: AxisTitles(
                                         strokeWidth: 1,
                                         dashArray: [4, 4],
                                         label: HorizontalLineLabel(
-                                          show: true,
+                                          show: false,
                                           alignment: Alignment.topLeft,
                                           labelResolver: (_) => _formatDuration(avgRest),
                                           style: const TextStyle(color: Colors.greenAccent, fontSize: 10),
@@ -355,7 +355,7 @@ bottomTitles: AxisTitles(
                                         strokeWidth: 1,
                                         dashArray: [4, 4],
                                         label: HorizontalLineLabel(
-                                          show: true,
+                                          show: false,
                                           alignment: Alignment.topLeft,
                                           labelResolver: (_) => _formatDuration(avgTotal),
                                           style: const TextStyle(color: Colors.blueAccent, fontSize: 10),
