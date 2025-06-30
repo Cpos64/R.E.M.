@@ -72,19 +72,33 @@ class _DreamChartPagerState extends State<DreamChartPager> {
           child: ToggleButtons(
             isSelected: [
               _windowDays == 7,
-              _windowDays == 30,
+              _windowDays == 28,
               _windowDays == 90,
+              _windowDays == 365,
             ],
             onPressed: (i) {
               setState(() {
-                _windowDays = (i == 0 ? 7 : i == 1 ? 30 : 90);
+                switch (i) {
+                  case 0:
+                    _windowDays = 7;
+                    break;
+                  case 1:
+                    _windowDays = 28;
+                    break;
+                  case 2:
+                    _windowDays = 90;
+                    break;
+                  default:
+                    _windowDays = 365;
+                }
               });
             },
             borderRadius: BorderRadius.circular(8),
             children: const [
               Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('7 d')),
-              Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('30 d')),
-              Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('90 d')),
+              Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('4 w')),
+              Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('3 m')),
+              Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('1 y')),
             ],
           ),
         ),

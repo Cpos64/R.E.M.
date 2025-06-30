@@ -95,17 +95,23 @@ class _SleepChartPagerState extends State<SleepChartPager> {
           ),
         ),
 
-        // ── Toggle for 7/30/90 *below* the charts ──
+        // ── Toggle for 7d/4w/3m/1y *below* the charts ──
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [7, 30, 90].map((value) {
+            children: [7, 28, 90, 365].map((value) {
               final isSelected = value == widget.selectedWindow;
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
                 child: ChoiceChip(
-                  label: Text('$value d'),
+                  label: Text(value == 7
+                      ? '7 d'
+                      : value == 28
+                          ? '4 w'
+                          : value == 90
+                              ? '3 m'
+                              : '1 y'),
                   selected: isSelected,
                   onSelected: (_) => widget.onWindowChanged(value),
                 ),

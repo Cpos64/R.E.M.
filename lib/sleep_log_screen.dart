@@ -115,13 +115,12 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
   void _shiftRange(int dir) {
     DateTime newStart = _rangeStart;
-    if (selectedDays == 28) {
+    if (selectedDays == 28 || selectedDays == 90) {
       newStart = DateTime(_rangeStart.year, _rangeStart.month + dir, _rangeStart.day);
     } else if (selectedDays == 365) {
       newStart = DateTime(_rangeStart.year, _rangeStart.month + (3 * dir), _rangeStart.day);
     } else {
-      final step = selectedDays == 1 ? 1 : selectedDays;
-      newStart = _rangeStart.add(Duration(days: step * dir));
+      newStart = _rangeStart.add(Duration(days: selectedDays * dir));
     }
 
     final now = DateTime.now();
@@ -134,17 +133,13 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
   String _formatRange() {
     final end = _calcEnd(_rangeStart);
-    if (selectedDays == 1) {
-      return DateFormat('MMM d, yyyy').format(_rangeStart);
-    } else if (selectedDays == 7) {
-      final s = DateFormat('MMM d').format(_rangeStart);
-      final e = DateFormat('MMM d').format(end);
-      return '$s – $e';
-    } else if (selectedDays == 28) {
-      return DateFormat('MMM yyyy').format(_rangeStart);
-    } else {
-      return '${_rangeStart.year}';
+    String startStr = DateFormat('MMM d').format(_rangeStart);
+    String endStr = DateFormat('MMM d').format(end);
+    if (_rangeStart.year != end.year) {
+      startStr = DateFormat('MMM d, yyyy').format(_rangeStart);
+      endStr = DateFormat('MMM d, yyyy').format(end);
     }
+    return '$startStr – $endStr';
   }
 
   void _navigateToInput(List<SleepInputField> inputs, int index) {
@@ -612,10 +607,10 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const {
-                  '1 Day': 1,
-                  '7 Days': 7,
-                  '4 Weeks': 28,
-                  '1 Year': 365,
+                  '7 d': 7,
+                  '4 w': 28,
+                  '3 m': 90,
+                  '1 y': 365,
                 }.entries.map((e) {
                   final sel = e.value == selectedDays;
                   return Padding(
