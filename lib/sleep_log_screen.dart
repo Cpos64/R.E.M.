@@ -6,6 +6,8 @@ import 'widgets/sleep_score_chart.dart';
 import 'widgets/sleep_entry_card.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'widgets/sleep_stage_bar_chart.dart';
+import 'widgets/sleep_consistency_chart.dart';
 
 /// Converts a "XhYm" string into total minutes.
 int _parseToMinutes(String input) {
@@ -794,7 +796,8 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 final start = _rangeStart;
                 final end = _calcEnd(_rangeStart);
                 final filteredLogs = logs.where((doc) {
-                  final ts = (doc.data()['timestamp'] as Timestamp?)?.toDate();
+                final dataMap = doc.data() as Map<String, dynamic>;
+                final ts = (dataMap['timestamp'] as Timestamp?)?.toDate();
                   return ts != null && !ts.isBefore(start) && !ts.isAfter(end);
                 }).toList();
                 if (filteredLogs.isEmpty) {

@@ -33,3 +33,5 @@
 [] Have way to store characters that people mention in there dreams so AI and readers of dreams know who you dreamed about. 
 
 [] Update dream logs to include ChatSLEEPT for image creation of dreams
+
+[] Email dream doctors and ask them about their favorite sleep metrics, the best sleep data, and what they don't currently see in most sleep apps that would be valuable. Also ask how they would calculate sleep score 
