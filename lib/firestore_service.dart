@@ -175,6 +175,44 @@ Future<void> updateDream({
       }).toList());
   }
 
+  Stream<List<Map<String, dynamic>>> watchLogsForChartRange(
+      DateTime start, int days) {
+    final user = _auth.currentUser;
+    if (user == null) return const Stream.empty();
+
+    final startDay = DateTime(start.year, start.month, start.day);
+    final cutoff = startDay;
+
+    return _firestore
+        .collection('sleep_logs')
+        .where('userId', isEqualTo: user.uid)
+        .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(cutoff))
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .map((snap) {
+      final endExclusive = startDay.add(Duration(days: days));
+      return snap.docs.map((doc) {
+        final d = doc.data();
+        return {
+          'date': (d['timestamp'] as Timestamp).toDate(),
+          'totalDuration': d['totalDuration'] ?? 0,
+          'deepSleep': d['deepSleep'] ?? 0,
+          'remSleep': d['remSleep'] ?? 0,
+          'lightSleep': d['lightSleep'] ?? 0,
+          'awakeTime': d['awakeTime'] ?? 0,
+          'sleepScore': d['sleepScore'] ?? 0,
+          'timeInBed': d['timeInBed'] ?? '',
+          'timeAsleep': d['timeAsleep'] ?? '',
+          'timeAwake': d['timeAwake'] ?? '',
+          'notes': d['notes'] ?? '',
+        };
+      }).where((e) {
+        final dt = e['date'] as DateTime;
+        return !dt.isBefore(startDay) && dt.isBefore(endExclusive);
+      }).toList();
+    });
+  }
+
   Future<void> saveSleepLogAuto({
     required String   totalDuration,
     required String   deepSleep,
