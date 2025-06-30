@@ -38,6 +38,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   late Future<List<QueryDocumentSnapshot>> _sleepLogsFuture;
   bool _isFirstLoad = true;
   int selectedDays = 7;
+  late DateTime _rangeStart;
 
   // controllers for Add dialog
   final _durationController = TextEditingController();
@@ -50,6 +51,14 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   final _notesController    = TextEditingController();
   final _dateController     = TextEditingController(text: DateFormat.yMd().format(DateTime.now()));
   final _inBedController    = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _rangeStart = today.subtract(Duration(days: selectedDays - 1));
+  }
 
   @override
   void didChangeDependencies() {
@@ -83,6 +92,57 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     setState(() {
       _sleepLogsFuture = _firestoreService.getSleepLogs();
     });
+  }
+
+  void _changeWindow(int days) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    setState(() {
+      selectedDays = days;
+      _rangeStart = today.subtract(Duration(days: days - 1));
+    });
+  }
+
+  DateTime _calcEnd(DateTime start) => start.add(Duration(days: selectedDays - 1));
+
+  bool get _canMoveForward {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _calcEnd(_rangeStart).isBefore(today);
+  }
+
+  void _shiftRange(int dir) {
+    DateTime newStart = _rangeStart;
+    if (selectedDays == 28) {
+      newStart = DateTime(_rangeStart.year, _rangeStart.month + dir, _rangeStart.day);
+    } else if (selectedDays == 365) {
+      newStart = DateTime(_rangeStart.year, _rangeStart.month + (3 * dir), _rangeStart.day);
+    } else {
+      final step = selectedDays == 1 ? 1 : selectedDays;
+      newStart = _rangeStart.add(Duration(days: step * dir));
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (_calcEnd(newStart).isAfter(today)) {
+      newStart = today.subtract(Duration(days: selectedDays - 1));
+    }
+    setState(() => _rangeStart = newStart);
+  }
+
+  String _formatRange() {
+    final end = _calcEnd(_rangeStart);
+    if (selectedDays == 1) {
+      return DateFormat('MMM d, yyyy').format(_rangeStart);
+    } else if (selectedDays == 7) {
+      final s = DateFormat('MMM d').format(_rangeStart);
+      final e = DateFormat('MMM d').format(end);
+      return '$s – $e';
+    } else if (selectedDays == 28) {
+      return DateFormat('MMM yyyy').format(_rangeStart);
+    } else {
+      return '${_rangeStart.year}';
+    }
   }
 
   void _navigateToInput(List<SleepInputField> inputs, int index) {
@@ -549,37 +609,62 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [7, 30, 90].map((value) {
-                  final sel = value == selectedDays;
+                children: const {
+                  '1 Day': 1,
+                  '7 Days': 7,
+                  '4 Weeks': 28,
+                  '1 Year': 365,
+                }.entries.map((e) {
+                  final sel = e.value == selectedDays;
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
                     child: ChoiceChip(
-                      label: Text('$value d'),
+                      label: Text(e.key),
                       selected: sel,
-                      onSelected: (_) => setState(() => selectedDays = value),
+                      onSelected: (_) => _changeWindow(e.value),
                     ),
                   );
                 }).toList(),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios),
+                    onPressed: () => _shiftRange(-1),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _formatRange(),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios),
+                    onPressed: _canMoveForward ? () => _shiftRange(1) : null,
+                  ),
+                ],
+              ),
+            ),
             StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _firestoreService.watchLogsForChart(selectedDays),
+              stream: _firestoreService.watchLogsForChartRange(_rangeStart, selectedDays),
               builder: (ctx, snap) {
                 if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
                 if (!snap.hasData) return const Center(child: CircularProgressIndicator());
 
                 final data = snap.data!;
-                final today = DateTime.now();
-                final windowStart = DateTime(today.year, today.month, today.day)
-                    .subtract(Duration(days: selectedDays - 1));
-                final days = List<DateTime>.generate(selectedDays,
-                    (i) => windowStart.add(Duration(days: i)));
+                final windowStart = _rangeStart;
+                final windowEnd = _calcEnd(_rangeStart);
+                final days = List<DateTime>.generate(
+                    selectedDays, (i) => windowStart.add(Duration(days: i)));
                 final filtered = data.where((entry) {
                   final raw = entry['date'];
                   final entryDate = raw is DateTime
                       ? raw
                       : DateTime.parse(raw as String).toLocal();
-                  return !entryDate.isBefore(windowStart) && !entryDate.isAfter(today);
+                  return !entryDate.isBefore(windowStart) && !entryDate.isAfter(windowEnd);
                 }).toList();
                 final buckets = List<Map<String, dynamic>?>.generate(
                   selectedDays,
@@ -706,10 +791,11 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                   );
                 }
                 final logs = snap.data ?? [];
-                final cutoff = DateTime.now().subtract(Duration(days: selectedDays));
+                final start = _rangeStart;
+                final end = _calcEnd(_rangeStart);
                 final filteredLogs = logs.where((doc) {
                   final ts = (doc.data()['timestamp'] as Timestamp?)?.toDate();
-                  return ts != null && ts.isAfter(cutoff);
+                  return ts != null && !ts.isBefore(start) && !ts.isAfter(end);
                 }).toList();
                 if (filteredLogs.isEmpty) {
                   return const Padding(
