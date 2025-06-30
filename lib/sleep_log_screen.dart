@@ -142,6 +142,107 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     return '$startStr – $endStr';
   }
 
+  // ── Helper: bucket size based on selected window ──
+  int _bucketSizeForWindow(int window) {
+    if (window == 90) return 7; // 3 Months → 7-day buckets
+    if (window == 365) return 14; // 1 Year   → 14-day buckets
+    return 1; // otherwise keep daily buckets
+  }
+
+  // Parse either ISO or "h:mm a" time into decimal hours
+  double _parseTimeStr(String? text) {
+    if (text == null || text.isEmpty) return 0.0;
+    final iso = DateTime.tryParse(text);
+    if (iso != null) return iso.hour + iso.minute / 60.0;
+    try {
+      final dt = DateFormat.jm().parse(text);
+      return dt.hour + dt.minute / 60.0;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
+  // Format minutes into "XhYm"
+  String _fmtDuration(double minutes) {
+    final h = minutes ~/ 60;
+    final m = (minutes % 60).round();
+    return '${h}h${m}m';
+  }
+
+  // Format decimal hours into a "h:mm a" time string
+  String _fmtTime(double value) {
+    final h = value.floor();
+    final m = ((value - h) * 60).round();
+    return DateFormat.jm().format(DateTime(0, 0, 0, h, m));
+  }
+
+  /// Build aggregated buckets for [data] starting from [start].
+  /// Returns a pair of bucket days and bucket maps.
+  Map<String, List<dynamic>> _buildAggregated(
+      List<Map<String, dynamic>> data, DateTime start, int window) {
+    final size = _bucketSizeForWindow(window);
+    final count = ((window - 1) ~/ size) + 1;
+
+    final days = List<DateTime>.generate(
+        count, (i) => start.add(Duration(days: i * size)));
+
+    final buckets = <Map<String, dynamic>?>[];
+    for (var i = 0; i < count; i++) {
+      final bStart = days[i];
+      final bEnd = bStart.add(Duration(days: size));
+      final entries = data.where((entry) {
+        final raw = entry['date'];
+        final dt = raw is DateTime
+            ? raw
+            : DateTime.parse(raw as String).toLocal();
+        return !dt.isBefore(bStart) && dt.isBefore(bEnd);
+      }).toList();
+
+      if (entries.isEmpty) {
+        buckets.add(null);
+        continue;
+      }
+
+      final len = entries.length;
+      double sumScore = 0,
+          sumTotal = 0,
+          sumDeep = 0,
+          sumRem = 0,
+          sumLight = 0,
+          sumAwake = 0,
+          sumBed = 0,
+          sumAsleep = 0,
+          sumWake = 0;
+
+      for (var e in entries) {
+        sumScore += (e['sleepScore'] as num?)?.toDouble() ?? 0.0;
+        sumTotal += _parseToMinutes(e['totalDuration'] ?? '0h0m').toDouble();
+        sumDeep += _parseToMinutes(e['deepSleep'] ?? '0h0m').toDouble();
+        sumRem += _parseToMinutes(e['remSleep'] ?? '0h0m').toDouble();
+        sumLight += _parseToMinutes(e['lightSleep'] ?? '0h0m').toDouble();
+        sumAwake += _parseToMinutes(e['awakeTime'] ?? '0h0m').toDouble();
+        sumBed += _parseTimeStr(e['timeInBed'] as String?);
+        sumAsleep += _parseTimeStr(e['timeAsleep'] as String?);
+        sumWake += _parseTimeStr(e['timeAwake'] as String?);
+      }
+
+      buckets.add({
+        'date': bStart,
+        'sleepScore': sumScore / len,
+        'totalDuration': _fmtDuration(sumTotal / len),
+        'deepSleep': _fmtDuration(sumDeep / len),
+        'remSleep': _fmtDuration(sumRem / len),
+        'lightSleep': _fmtDuration(sumLight / len),
+        'awakeTime': _fmtDuration(sumAwake / len),
+        'timeInBed': _fmtTime(sumBed / len),
+        'timeAsleep': _fmtTime(sumAsleep / len),
+        'timeAwake': _fmtTime(sumWake / len),
+      });
+    }
+
+    return {'days': days, 'buckets': buckets};
+  }
+
   void _navigateToInput(List<SleepInputField> inputs, int index) {
     final input = inputs[index];
     if (input.isDuration) {
@@ -653,30 +754,9 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
                 final data = snap.data!;
                 final windowStart = _rangeStart;
-                final windowEnd = _calcEnd(_rangeStart);
-                final days = List<DateTime>.generate(
-                    selectedDays, (i) => windowStart.add(Duration(days: i)));
-                final filtered = data.where((entry) {
-                  final raw = entry['date'];
-                  final entryDate = raw is DateTime
-                      ? raw
-                      : DateTime.parse(raw as String).toLocal();
-                  return !entryDate.isBefore(windowStart) && !entryDate.isAfter(windowEnd);
-                }).toList();
-                final buckets = List<Map<String, dynamic>?>.generate(
-                  selectedDays,
-                  (i) {
-                    final day = days[i];
-                    for (var entry in filtered) {
-                      final raw = entry['date'];
-                      final d = raw is DateTime ? raw : DateTime.parse(raw as String);
-                      if (d.year == day.year && d.month == day.month && d.day == day.day) {
-                        return entry;
-                      }
-                    }
-                    return null;
-                  },
-                );
+                final result = _buildAggregated(data, windowStart, selectedDays);
+                final days = result['days']!.cast<DateTime>();
+                final buckets = result['buckets']!.cast<Map<String, dynamic>?>();
                 final valid = buckets.where((e) => e != null).cast<Map<String, dynamic>>().toList();
                 double avgScore = 0;
                 double avgStageDuration = 0;
