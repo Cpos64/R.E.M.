@@ -18,6 +18,25 @@ class SleepScoreChart extends StatelessWidget {
     // Thinning labels for longer windows
     final labelInterval = days.length <= 7 ? 1.0 : (days.length / 6).ceilToDouble();
 
+    // Determine bucket size in days for tooltip ranges
+    final bucketSize = days.length > 1
+        ? days[1].difference(days[0]).inDays
+        : 1;
+
+    String formatRange(int idx) {
+      final start = days[idx];
+      if (bucketSize <= 1) {
+        return DateFormat('E, MMM d').format(start);
+      }
+      final end = start.add(Duration(days: bucketSize - 1));
+      final sameYear = start.year == end.year;
+      final startFmt = DateFormat('MMM d').format(start);
+      final endFmt = sameYear
+          ? DateFormat('MMM d').format(end)
+          : DateFormat('MMM d, yyyy').format(end);
+      return '$startFmt - $endFmt';
+    }
+
     // 1️⃣ Gather only the non-null score values and cast to double
     final scoreList = buckets
         .where((b) => b != null && b!['sleepScore'] != null)
@@ -154,7 +173,7 @@ bottomTitles: AxisTitles(
                     getTooltipItems: (spots) {
                       if (spots.isEmpty) return [];
                       final i = spots.first.x.toInt();
-                      final dateStr = DateFormat('E, MMM d').format(days[i]);
+                      final dateStr = formatRange(i);
                       final scoreValue =
                           (buckets[i]?['sleepScore'] as num?)?.round() ?? 0;
                       return [

@@ -869,11 +869,11 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 }
                 final logs = snap.data ?? [];
                 final start = _rangeStart;
-                final end = _calcEnd(_rangeStart);
+                final endExclusive = _calcEnd(_rangeStart).add(const Duration(days: 1));
                 final filteredLogs = logs.where((doc) {
-                final dataMap = doc.data() as Map<String, dynamic>;
-                final ts = (dataMap['timestamp'] as Timestamp?)?.toDate();
-                  return ts != null && !ts.isBefore(start) && !ts.isAfter(end);
+                  final dataMap = doc.data() as Map<String, dynamic>;
+                  final ts = (dataMap['timestamp'] as Timestamp?)?.toDate();
+                  return ts != null && !ts.isBefore(start) && ts.isBefore(endExclusive);
                 }).toList();
                 if (filteredLogs.isEmpty) {
                   return const Padding(
