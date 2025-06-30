@@ -65,21 +65,28 @@ class _SleepChartPagerState extends State<SleepChartPager> {
   Map<String, List<dynamic>> _buildAggregated(
       List<Map<String, dynamic>> data, DateTime start, int window) {
     final size = _bucketSizeForWindow(window);
-    final count = ((window - 1) ~/ size) + 1;
 
-    final days =
-        List<DateTime>.generate(count, (i) => start.add(Duration(days: i * size)));
+    final today = DateTime.now();
+    DateTime bucketEnd = DateTime(today.year, today.month, today.day);
+    final firstBucketStart = start;
 
+    final days = <DateTime>[];
     final buckets = <Map<String, dynamic>?>[];
-    for (var i = 0; i < count; i++) {
-      final bStart = days[i];
-      final bEnd = bStart.add(Duration(days: size));
+
+    while (!bucketEnd.isBefore(firstBucketStart)) {
+      final rawStart = bucketEnd.subtract(Duration(days: size - 1));
+      final bStart = rawStart.isBefore(firstBucketStart)
+          ? firstBucketStart
+          : rawStart;
+
+      days.add(bStart);
+
       final entries = data.where((e) {
         final raw = e['date'];
         final dt = raw is DateTime
             ? raw
             : DateTime.parse(raw as String).toLocal();
-        return !dt.isBefore(bStart) && dt.isBefore(bEnd);
+        return !dt.isBefore(bStart) && !dt.isAfter(bucketEnd);
       }).toList();
 
       if (entries.isEmpty) {
@@ -131,9 +138,14 @@ class _SleepChartPagerState extends State<SleepChartPager> {
         'timeAsleep': _fmtTime(((sumAsleep / len) % 1440) / 60.0),
         'timeAwake': _fmtTime(((sumWake / len) % 1440) / 60.0),
       });
+
+      bucketEnd = bStart.subtract(const Duration(days: 1));
     }
 
-    return {'days': days, 'buckets': buckets};
+    return {
+      'days': days.reversed.toList(),
+      'buckets': buckets.reversed.toList(),
+    };
   }
 
   void _goToPage(int index) {
