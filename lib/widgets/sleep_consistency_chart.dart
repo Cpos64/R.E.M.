@@ -35,7 +35,20 @@ class SleepConsistencyChart extends StatelessWidget {
     required String rightLabel,
     required String rightTime,
   }) {
-    final dateStr = DateFormat.MMMMd().format(date);
+    final idx = days.indexOf(date);
+    final bucketSize = days.length > 1 ? days[1].difference(days[0]).inDays : 1;
+    final dateStr = () {
+      if (bucketSize <= 1 || idx == -1) {
+        return DateFormat.MMMMd().format(date);
+      }
+      final end = date.add(Duration(days: bucketSize - 1));
+      final sameYear = date.year == end.year;
+      final startFmt = DateFormat('MMM d').format(date);
+      final endFmt = sameYear
+          ? DateFormat('MMM d').format(end)
+          : DateFormat('MMM d, yyyy').format(end);
+      return '$startFmt - $endFmt';
+    }();
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
       decoration: BoxDecoration(
@@ -199,6 +212,21 @@ final step = days.length <= 7
                       final bed = fmtTime(entry['timeInBed'] as String?);
                       final asleep = fmtTime(entry['timeAsleep'] as String?);
                       final wake = fmtTime(entry['timeAwake'] as String?);
+                      final bucketSize = days.length > 1
+                          ? days[1].difference(days[0]).inDays
+                          : 1;
+                      final dateStr = () {
+                        if (bucketSize <= 1) {
+                          return DateFormat.MMMMd().format(date);
+                        }
+                        final end = date.add(Duration(days: bucketSize - 1));
+                        final sameYear = date.year == end.year;
+                        final startFmt = DateFormat('MMM d').format(date);
+                        final endFmt = sameYear
+                            ? DateFormat('MMM d').format(end)
+                            : DateFormat('MMM d, yyyy').format(end);
+                        return '$startFmt - $endFmt';
+                      }();
                       final leftTime = rodIndex == 0 ? bed : asleep;
                       final rightTime = rodIndex == 0 ? asleep : wake;
                       final leftLabel = rodIndex == 0 ? 'Bedtime' : 'Asleep';
@@ -208,7 +236,7 @@ final step = days.length <= 7
                         const TextStyle(),
                         children: [
                           TextSpan(
-                            text: '${DateFormat.MMMMd().format(date)}\n',
+                            text: '$dateStr\n',
                             style: TextStyle(
                                 color: Colors.white70, fontSize: 10),
                           ),
