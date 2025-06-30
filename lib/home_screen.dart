@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   StreamSubscription? _sleepSub;
   StreamSubscription? _dreamSub;
+  Timer? _debounce;
 
   Map<String, dynamic>? _lastSleep;
   List<QueryDocumentSnapshot> _recentDreams = [];
@@ -153,13 +154,18 @@ class _HomeScreenState extends State<HomeScreen> {
     _sleepSub?.cancel();
     _dreamSub?.cancel();
 
+    void scheduleFetch([_]) {
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(seconds: 1), _fetchHomeData);
+    }
+
     _sleepSub = FirebaseFirestore.instance
         .collection('sleep_logs')
         .where('userId', isEqualTo: uid)
         .orderBy('timestamp', descending: true)
         .limit(1)
         .snapshots()
-        .listen((_) => _fetchHomeData(), onError: (_) {
+        .listen(scheduleFetch, onError: (_) {
           setState(() => _loadingData = false);
         });
 
@@ -169,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .orderBy('timestamp', descending: true)
         .limit(1)
         .snapshots()
-        .listen((_) => _fetchHomeData(), onError: (_) {
+        .listen(scheduleFetch, onError: (_) {
           setState(() => _loadingData = false);
         });
   }
@@ -203,6 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _sleepSub?.cancel();
     _dreamSub?.cancel();
     super.dispose();
