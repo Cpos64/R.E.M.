@@ -1,32 +1,23 @@
 # Planner for R.E.M. APP Project
 
 ## 📅 Today
-
-
-## 📆 Tomorrow
-
-[X] Update and clean up Dream Chart
-
-[X] Move dream chart to "Me" tab and restructure as Dream Tab with just showing dream logs in a creative way
-
 [] Restructure sleep screen to be like Garmin's sleep window and get rid of sleep logs... dont need them
 
-[] Email app developers and ask quality questions
-
-[X] Simplify Navigation Tab 
-- take away text and color. just have simple objects all with same, subtle color
+[] Update Home, Me, and ChatSLEEPT windows with 04-mini-high and update Navigation window
 
 [] Come up with clear Mission statement and Target Demographic
 
-## ⏳ Backlog
-
-[] Add recommendations tab
-
-[] Shareable option to other social medias
-- ability to export post/log as a picture so the user can share on other social media platforms and increase REM exposure
+[] Add recommendations on home screen
 
 [] Fix avg labels on charts
 - hard to see labels on 30-d and 90-d charts
+## 📆 Tomorrow
+[] Email app developers and ask quality questions
+
+
+## ⏳ Backlog
+[] Shareable option to other social medias
+- ability to export post/log as a picture so the user can share on other social media platforms and increase REM exposure
 
 [] Update loading screen whenn launching app 
 - instead of flutter logo, have REM logo
@@ -40,7 +31,5 @@
 [] Brainstorm ideas for the UI/look of the app 
 
 [] Have way to store characters that people mention in there dreams so AI and readers of dreams know who you dreamed about. 
-
-[] Update Home, Me, and ChatSLEEPT windows with 04-mini-high and update Navigation window
 
 [] Update dream logs to include ChatSLEEPT for image creation of dreams
