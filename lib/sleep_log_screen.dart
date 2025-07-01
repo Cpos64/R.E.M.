@@ -131,15 +131,6 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     setState(() => _rangeStart = newStart);
   }
 
-  String _formatRange() {
-    final today = DateTime.now();
-    final bucketEnd = DateTime(today.year, today.month, today.day);
-    final labelStart = bucketEnd.subtract(Duration(days: selectedDays - 1));
-    final startStr = DateFormat.MMMd().format(labelStart);
-    final endStr = DateFormat.MMMd().format(bucketEnd);
-    return '$startStr – $endStr';
-  }
-
   // ── Helper: bucket size based on selected window ──
   int _bucketSizeForWindow(int window) {
     if (window == 90 || window == 365) return 7; // 3M & 1Y → weekly buckets
@@ -181,16 +172,16 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     final size = _bucketSizeForWindow(window);
     final today = DateTime.now();
     final bucketEnd = DateTime(today.year, today.month, today.day);
-    final firstDay = bucketEnd.subtract(Duration(days: window - 1));
-    final count = ((window - 1) ~/ size) + 1;
+    final bucketStart = bucketEnd.subtract(Duration(days: window - 1));
 
-    final days = List<DateTime>.generate(
-        count, (i) => firstDay.add(Duration(days: i * size)));
-
+    final days = <DateTime>[];
     final buckets = <Map<String, dynamic>?>[];
-    for (var i = 0; i < count; i++) {
-      final bStart = days[i];
-      final bEnd = bStart.add(Duration(days: size));
+
+    for (var end = bucketEnd; !end.isBefore(bucketStart); end = end.subtract(Duration(days: size))) {
+      final start = end.subtract(Duration(days: size - 1));
+      days.insert(0, start);
+      final bStart = start;
+      final bEnd = end.add(const Duration(days: 1));
       final entries = data.where((entry) {
         final raw = entry['date'];
         final dt = raw is DateTime
@@ -735,27 +726,6 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 }).toList(),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios),
-                    onPressed: () => _shiftRange(-1),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _formatRange(),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios),
-                    onPressed: _canMoveForward ? () => _shiftRange(1) : null,
-                  ),
-                ],
-              ),
-            ),
             StreamBuilder<List<Map<String, dynamic>>>(
               stream: _firestoreService.watchLogsForChartRange(_rangeStart, selectedDays),
               builder: (ctx, snap) {
@@ -767,6 +737,8 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 final result = _buildAggregated(data, windowStart, selectedDays);
                 final days = result['days']!.cast<DateTime>();
                 final buckets = result['buckets']!.cast<Map<String, dynamic>?>();
+                final label =
+                    '${DateFormat.MMMd().format(days.first)} – ${DateFormat.MMMd().format(days.last)}';
                 final valid = buckets.where((e) => e != null).cast<Map<String, dynamic>>().toList();
                 double avgScore = 0;
                 double avgStageDuration = 0;
@@ -825,6 +797,27 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios),
+                            onPressed: () => _shiftRange(-1),
+                          ),
+                          Expanded(
+                            child: Text(
+                              label,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_forward_ios),
+                            onPressed: _canMoveForward ? () => _shiftRange(1) : null,
+                          ),
+                        ],
+                      ),
+                    ),
                     SizedBox(
                       height: 260,
                       child: SleepScoreChart(buckets: buckets, days: days),
