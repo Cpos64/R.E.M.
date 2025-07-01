@@ -91,7 +91,6 @@ class _SleepChartPagerState extends State<SleepChartPager> {
 
       if (entries.isEmpty) {
         buckets.add(null);
-        continue;
       }
 
       final len = entries.length;

@@ -3,17 +3,16 @@
 ## 📅 Today
 [] Restructure sleep screen to be like Garmin's sleep window and get rid of sleep logs... dont need them
 
-[] Update Home, Me, and ChatSLEEPT windows with 04-mini-high and update Navigation window
+[] Update Home, Me, and Group windows with 04-mini-high and update Navigation window
 
 [] Come up with clear Mission statement and Target Demographic
 
 [] Add recommendations on home screen
 
-[] Fix avg labels on charts
-- hard to see labels on 30-d and 90-d charts
 ## 📆 Tomorrow
 [] Email app developers and ask quality questions
 
+[] Email dream doctors and ask them about their favorite sleep metrics, the best sleep data, and what they don't currently see in most sleep apps that would be valuable. Also ask how they would calculate sleep score
 
 ## ⏳ Backlog
 [] Shareable option to other social medias
@@ -21,8 +20,6 @@
 
 [] Update loading screen whenn launching app 
 - instead of flutter logo, have REM logo
-
-[] Make logo appear on loading screen instead of Flutter icon
 
 [] Update DREAM GENRES: take away normal, add movie genres: Action, Comedy, Romance, Thriller, Drama, Sci-Fi, Horror, etc. Add custom dream genre options where user can add custom genres with correlating color. Max at 3 custom genres.
 
@@ -34,4 +31,4 @@
 
 [] Update dream logs to include ChatSLEEPT for image creation of dreams
 
-[] Email dream doctors and ask them about their favorite sleep metrics, the best sleep data, and what they don't currently see in most sleep apps that would be valuable. Also ask how they would calculate sleep score 
+ 
