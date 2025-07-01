@@ -182,7 +182,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
       List<Map<String, dynamic>> data, DateTime start, int window) {
     final size = _bucketSizeForWindow(window);
 
-    // ── Clamp buckets so the last one ends today ──
+    // 1. Clamp last bucket to today
     final today = DateTime.now();
     DateTime bucketEnd = DateTime(today.year, today.month, today.day);
     final firstBucketStart = start;
@@ -190,6 +190,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     final days = <DateTime>[];
     final buckets = <Map<String, dynamic>?>[];
 
+    // 2. Build 7-day (or 1-day) buckets backwards
     while (!bucketEnd.isBefore(firstBucketStart)) {
       final rawStart = bucketEnd.subtract(Duration(days: size - 1));
       final bStart = rawStart.isBefore(firstBucketStart)
@@ -198,6 +199,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
       days.add(bStart);
 
+      // 3. Collect entries in this bucket
       final entries = data.where((entry) {
         final raw = entry['date'];
         final dt = raw is DateTime
@@ -206,11 +208,14 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
         return !dt.isBefore(bStart) && !dt.isAfter(bucketEnd);
       }).toList();
 
+      // 4. If no data, add null and step back
       if (entries.isEmpty) {
         buckets.add(null);
+        bucketEnd = bStart.subtract(const Duration(days: 1));
         continue;
       }
 
+      // 5. Otherwise aggregate durations and times
       final len = entries.length;
       double sumScore = 0,
           sumTotal = 0,
@@ -224,25 +229,29 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
       for (var e in entries) {
         sumScore += (e['sleepScore'] as num?)?.toDouble() ?? 0.0;
-        sumTotal += _parseToMinutes(e['totalDuration'] ?? '0h0m').toDouble();
-        sumDeep += _parseToMinutes(e['deepSleep'] ?? '0h0m').toDouble();
-        sumRem += _parseToMinutes(e['remSleep'] ?? '0h0m').toDouble();
-        sumLight += _parseToMinutes(e['lightSleep'] ?? '0h0m').toDouble();
-        sumAwake += _parseToMinutes(e['awakeTime'] ?? '0h0m').toDouble();
+        sumTotal += _parseToMinutes(e['totalDuration'] ?? '0h0m');
+        sumDeep += _parseToMinutes(e['deepSleep'] ?? '0h0m');
+        sumRem += _parseToMinutes(e['remSleep'] ?? '0h0m');
+        sumLight += _parseToMinutes(e['lightSleep'] ?? '0h0m');
+        sumAwake += _parseToMinutes(e['awakeTime'] ?? '0h0m');
 
         final bedObj = _parseTimeObj(e['timeInBed'] as String?);
         final asleepObj = _parseTimeObj(e['timeAsleep'] as String?);
         final wakeObj = _parseTimeObj(e['timeAwake'] as String?);
+
         final bedMin = _toMinutes(bedObj);
         var asleepMin = _toMinutes(asleepObj);
         var wakeMin = _toMinutes(wakeObj);
+
         if (asleepObj != null && asleepMin < bedMin) asleepMin += 1440;
         if (wakeObj != null && wakeMin < bedMin) wakeMin += 1440;
+
         sumBed += bedMin.toDouble();
         sumAsleep += asleepMin.toDouble();
         sumWake += wakeMin.toDouble();
       }
 
+      // 6. Add aggregated bucket
       buckets.add({
         'date': bStart,
         'sleepScore': sumScore / len,
@@ -256,7 +265,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
         'timeAwake': _fmtTime(((sumWake / len) % 1440) / 60.0),
       });
 
-      // Move to the prior bucket
+      // 7. Step back one day for the next bucket
       bucketEnd = bStart.subtract(const Duration(days: 1));
     }
 
