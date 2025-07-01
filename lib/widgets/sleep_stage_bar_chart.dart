@@ -18,18 +18,34 @@ class SleepStageBarChart extends StatefulWidget {
   _SleepStageBarChartState createState() => _SleepStageBarChartState();
 }
 
+
+
 class _SleepStageBarChartState extends State<SleepStageBarChart> {
   int? touchedIndex;
   Offset? touchPosition;
-
-  late final int _bucketSize;
+  late  int _bucketSize;
 
   @override
   void initState() {
     super.initState();
+    _recalcBucketSize();
+  }
+
+void didUpdateWidget(covariant SleepStageBarChart old) {
+  super.didUpdateWidget(old);
+  // recalculate bucketSize any time days change
+  _recalcBucketSize();
+  // clear any in‐flight tooltip (so no stale index)
+  setState(() {
+    touchedIndex  = null;
+    touchPosition = null;
+  });
+}
+
+  void _recalcBucketSize() {
     _bucketSize = widget.days.length > 1
-        ? widget.days[1].difference(widget.days[0]).inDays
-        : 1;
+      ? widget.days[1].difference(widget.days[0]).inDays
+      : 1;
   }
 
   double _parseToMinutes(dynamic duration) {
@@ -81,31 +97,42 @@ Widget _buildTooltipContent() {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Date header
-            Builder(builder: (context) {
-              final start = widget.days[touchedIndex!];
-              String dateLabel;
-              if (_bucketSize <= 1) {
-                dateLabel = DateFormat.MMMd().format(start);
-              } else {
-                final end = start.add(Duration(days: _bucketSize - 1));
-                final sameYear = start.year == end.year;
-                final startFmt = DateFormat('MMM d').format(start);
-                final endFmt = sameYear
-                    ? DateFormat('MMM d').format(end)
-                    : DateFormat('MMM d, yyyy').format(end);
-                dateLabel = '$startFmt - $endFmt';
-              }
-              return Text(
-                dateLabel,
-                style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.7),
-                  fontSize: 10,
-                ),
-              );
-            }),
+Builder(builder: (_) {
+  final idx = touchedIndex;
+  // if nothing is touched (or stale), don’t crash—just render nothing
+  if (idx == null || idx < 0 || idx >= widget.days.length) {
+    return const SizedBox.shrink();
+  }
+  final endDate = widget.days[idx];
+  final bucketSize = _bucketSize;
+
+  // compute startDate by subtracting bucketSize – 1
+final startDate = bucketSize > 1
+    ? endDate.subtract(Duration(days: bucketSize - 1))
+    : endDate;
+
+final dateLabel = bucketSize <= 1
+    ? DateFormat.MMMd().format(endDate)
+    : () {
+        final sameYear = startDate.year == endDate.year;
+        final sFmt = DateFormat('MMM d').format(startDate);
+        final eFmt = sameYear
+            ? DateFormat('MMM d').format(endDate)
+            : DateFormat('MMM d, yyyy').format(endDate);
+        return '$sFmt – $eFmt';
+      }();
+  return Text(
+    dateLabel,
+    style: TextStyle(
+      color: Theme.of(context)
+         .colorScheme
+         .onSurface
+         .withOpacity(0.7),
+      fontSize: 10,
+    ),
+  );
+}),
+
             const SizedBox(height: 4),
 
             // Total sleep

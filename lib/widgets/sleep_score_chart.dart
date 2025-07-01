@@ -176,7 +176,16 @@ bottomTitles: AxisTitles(
                     getTooltipItems: (spots) {
                       if (spots.isEmpty) return [];
                       final i = spots.first.x.toInt();
-                      final dateStr = formatRange(i);
+                      // days[i] is the bucket‐end date
+                      final endDate   = days[i];
+                      // bucket size = number of days between days[1] and days[0], or 1 if it's a daily bucket
+                      final bucketSize = days.length > 1
+                              ? days[1].difference(days[0]).inDays
+                              : 1;
+                      // compute the start by subtracting (bucketSize - 1) days
+                      final startDate = endDate.subtract(Duration(days: bucketSize - 1));
+                      final dateStr   = '${DateFormat.MMMd().format(startDate)} – '
+                         '${DateFormat.MMMd().format(endDate)}';
                       final scoreValue =
                           (buckets[i]?['sleepScore'] as num?)?.round() ?? 0;
                       return [

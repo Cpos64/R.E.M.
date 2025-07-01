@@ -168,6 +168,18 @@ final step = days.length <= 7
       }
     }
 
+    // 3️⃣ Compute dynamic minY/maxY based on rod endpoints
+final allY = rods.expand((group) => group.barRods).expand((rod) sync* {
+  yield rod.fromY;
+  yield rod.toY;
+}).toList();
+final minPoint = allY.isEmpty ? 0.0 : allY.reduce((a, b) => a < b ? a : b);
+final maxPoint = allY.isEmpty ? 24.0 : allY.reduce((a, b) => a > b ? a : b);
+// add a little padding
+final minY = (minPoint - 1).floorToDouble();
+final maxY = (maxPoint + 1).ceilToDouble();
+
+
     return Column(
       children: [
         const Padding(
@@ -192,75 +204,84 @@ final step = days.length <= 7
                     tooltipMargin: 4,
                     getTooltipColor: (_) => Colors.grey[900]!.withOpacity(0.9),
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final date = days[group.x.toInt()];
-                      final entry = buckets[group.x.toInt()] ?? {};
-                      String fmtTime(String? raw) {
-                        if (raw == null || raw.isEmpty) return '—';
-                        final iso = DateTime.tryParse(raw);
-                        String out;
-                        if (iso != null) {
-                          out = DateFormat.jm().format(iso);
-                        } else {
-                          try {
-                            out = DateFormat.jm().format(DateFormat.jm().parse(raw));
-                          } catch (_) {
-                            return raw;
-                          }
-                        }
-                        return out.replaceAll(' ', '\u00A0');
-                      }
-                      final bed = fmtTime(entry['timeInBed'] as String?);
-                      final asleep = fmtTime(entry['timeAsleep'] as String?);
-                      final wake = fmtTime(entry['timeAwake'] as String?);
-                      final bucketSize = days.length > 1
-                          ? days[1].difference(days[0]).inDays
-                          : 1;
-                      final dateStr = () {
-                        if (bucketSize <= 1) {
-                          return DateFormat.MMMMd().format(date);
-                        }
-                        final end = date.add(Duration(days: bucketSize - 1));
-                        final sameYear = date.year == end.year;
-                        final startFmt = DateFormat('MMM d').format(date);
-                        final endFmt = sameYear
-                            ? DateFormat('MMM d').format(end)
-                            : DateFormat('MMM d, yyyy').format(end);
-                        return '$startFmt - $endFmt';
-                      }();
-                      final leftTime = rodIndex == 0 ? bed : asleep;
-                      final rightTime = rodIndex == 0 ? asleep : wake;
-                      final leftLabel = rodIndex == 0 ? 'Bedtime' : 'Asleep';
-                      final rightLabel = rodIndex == 0 ? 'Asleep' : 'Wake';
-                      return BarTooltipItem(
-                        '',
-                        const TextStyle(),
-                        children: [
-                          TextSpan(
-                            text: '$dateStr\n',
-                            style: TextStyle(
-                                color: Colors.white70, fontSize: 10),
-                          ),
-                          TextSpan(
-                            text: '$leftTime\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0$rightTime\n',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(
-                            text: '$leftLabel\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0$rightLabel',
-                            style: TextStyle(
-                                color: Colors.white70, fontSize: 10),
-                          ),
-                        ],
-                      );
-                    },
+  // Treat days[x] as the bucket end date
+  final endDate = days[group.x.toInt()];
+  // Compute bucket size in days
+  final bucketSize = days.length > 1
+      ? days[1].difference(days[0]).inDays
+      : 1;
+  // Compute start date
+  final startDate = bucketSize > 1
+      ? endDate.subtract(Duration(days: bucketSize - 1))
+      : endDate;
+  // Format date range
+  final sameYear = startDate.year == endDate.year;
+  final startFmt = DateFormat('MMM d').format(startDate);
+  final endFmt = sameYear
+      ? DateFormat('MMM d').format(endDate)
+      : DateFormat('MMM d, yyyy').format(endDate);
+  final dateStr = bucketSize <= 1
+      ? startFmt
+      : '$startFmt – $endFmt';
+
+  // Fetch the bucket’s data
+  final entry = buckets[group.x.toInt()] ?? {};
+
+  // Reuse your fmtTime helper
+  String fmtTime(String? raw) {
+    if (raw == null || raw.isEmpty) return '—';
+    final iso = DateTime.tryParse(raw);
+    String out;
+    if (iso != null) {
+      out = DateFormat.jm().format(iso);
+    } else {
+      try {
+        out = DateFormat.jm().format(DateFormat.jm().parse(raw));
+      } catch (_) {
+        return raw;
+      }
+    }
+    return out.replaceAll(' ', '\u00A0');
+  }
+
+  final bed    = fmtTime(entry['timeInBed']   as String?);
+  final asleep = fmtTime(entry['timeAsleep'] as String?);
+  final wake   = fmtTime(entry['timeAwake']  as String?);
+
+  final leftTime   = rodIndex == 0 ? bed    : asleep;
+  final rightTime  = rodIndex == 0 ? asleep : wake;
+  final leftLabel  = rodIndex == 0 ? 'Bedtime' : 'Asleep';
+  final rightLabel = rodIndex == 0 ? 'Asleep'  : 'Wake';
+
+  return BarTooltipItem(
+    '',
+    const TextStyle(),
+    children: [
+      TextSpan(
+        text: '$dateStr\n',
+        style: TextStyle(color: Colors.white70, fontSize: 10),
+      ),
+      TextSpan(
+        text: '$leftTime\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0$rightTime\n',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      TextSpan(
+        text: '$leftLabel\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0$rightLabel',
+        style: TextStyle(color: Colors.white70, fontSize: 10),
+      ),
+    ],
+  );
+},
                   ),
                 ),
                 alignment: BarChartAlignment.spaceAround,
                 groupsSpace: 4,
-                minY: -6,
-                maxY: 12,
+                minY: minY,
+                maxY: maxY,
                 barGroups: rods,
                 gridData: FlGridData(
                   show: true,

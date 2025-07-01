@@ -74,7 +74,7 @@ class _SleepChartPagerState extends State<SleepChartPager> {
 
     for (var end = bucketEnd; !end.isBefore(bucketStart); end = end.subtract(Duration(days: size))) {
       final start = end.subtract(Duration(days: size - 1));
-      days.insert(0, start);
+      days.insert(0, end);
       final bStart = start;
       final bEnd = end.add(const Duration(days: 1));
       final entries = data.where((e) {

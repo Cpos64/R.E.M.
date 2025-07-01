@@ -167,19 +167,27 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
   /// Build aggregated buckets for [data] starting from [start].
   /// Returns a pair of bucket days and bucket maps.
-  Map<String, List<dynamic>> _buildAggregated(
-      List<Map<String, dynamic>> data, DateTime _, int window) {
+ Map<String, List<dynamic>> _buildAggregated(
+     List<Map<String, dynamic>> data, DateTime start, int window) {
     final size = _bucketSizeForWindow(window);
-    final today = DateTime.now();
-    final bucketEnd = DateTime(today.year, today.month, today.day);
-    final bucketStart = bucketEnd.subtract(Duration(days: window - 1));
+  // use the passed‐in `start` and `window`
+  DateTime bucketStart = start;
+  DateTime bucketEnd   = bucketStart.add(Duration(days: window - 1));
+
+  // clamp bucketEnd to today if it goes beyond
+  final today = DateTime.now();
+  if (bucketEnd.isAfter(DateTime(today.year, today.month, today.day))) {
+    bucketEnd = DateTime(today.year, today.month, today.day);
+    // and push bucketStart back so you still have `window` days
+    bucketStart = bucketEnd.subtract(Duration(days: window - 1));
+  }
 
     final days = <DateTime>[];
     final buckets = <Map<String, dynamic>?>[];
 
     for (var end = bucketEnd; !end.isBefore(bucketStart); end = end.subtract(Duration(days: size))) {
       final start = end.subtract(Duration(days: size - 1));
-      days.insert(0, start);
+      days.insert(0, end);
       final bStart = start;
       final bEnd = end.add(const Duration(days: 1));
       final entries = data.where((entry) {
@@ -241,7 +249,10 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
       });
     }
 
-    return {'days': days, 'buckets': buckets};
+    return {
+      'days': days,                       // still oldest→newest
+      'buckets': buckets.reversed.toList(), // now also oldest→newest
+    };
   }
 
   void _navigateToInput(List<SleepInputField> inputs, int index) {
