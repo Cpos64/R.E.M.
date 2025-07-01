@@ -63,12 +63,15 @@ class _SleepChartPagerState extends State<SleepChartPager> {
   }
 
   Map<String, List<dynamic>> _buildAggregated(
-      List<Map<String, dynamic>> data, DateTime start, int window) {
+      List<Map<String, dynamic>> data, DateTime _, int window) {
     final size = _bucketSizeForWindow(window);
+    final today = DateTime.now();
+    final bucketEnd = DateTime(today.year, today.month, today.day);
+    final firstDay = bucketEnd.subtract(Duration(days: window - 1));
     final count = ((window - 1) ~/ size) + 1;
 
     final days =
-        List<DateTime>.generate(count, (i) => start.add(Duration(days: i * size)));
+        List<DateTime>.generate(count, (i) => firstDay.add(Duration(days: i * size)));
 
     final buckets = <Map<String, dynamic>?>[];
     for (var i = 0; i < count; i++) {

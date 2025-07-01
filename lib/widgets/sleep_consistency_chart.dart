@@ -188,7 +188,7 @@ final step = days.length <= 7
                     fitInsideHorizontally: true,
                     fitInsideVertically: true,
                     tooltipPadding:
-                        const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                        const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                     tooltipMargin: 4,
                     getTooltipColor: (_) => Colors.grey[900]!.withOpacity(0.9),
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {

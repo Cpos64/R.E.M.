@@ -132,13 +132,11 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   }
 
   String _formatRange() {
-    final end = _calcEnd(_rangeStart);
-    String startStr = DateFormat('MMM d').format(_rangeStart);
-    String endStr = DateFormat('MMM d').format(end);
-    if (_rangeStart.year != end.year) {
-      startStr = DateFormat('MMM d, yyyy').format(_rangeStart);
-      endStr = DateFormat('MMM d, yyyy').format(end);
-    }
+    final today = DateTime.now();
+    final bucketEnd = DateTime(today.year, today.month, today.day);
+    final labelStart = bucketEnd.subtract(Duration(days: selectedDays - 1));
+    final startStr = DateFormat.MMMd().format(labelStart);
+    final endStr = DateFormat.MMMd().format(bucketEnd);
     return '$startStr – $endStr';
   }
 
@@ -179,12 +177,15 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   /// Build aggregated buckets for [data] starting from [start].
   /// Returns a pair of bucket days and bucket maps.
   Map<String, List<dynamic>> _buildAggregated(
-      List<Map<String, dynamic>> data, DateTime start, int window) {
+      List<Map<String, dynamic>> data, DateTime _, int window) {
     final size = _bucketSizeForWindow(window);
+    final today = DateTime.now();
+    final bucketEnd = DateTime(today.year, today.month, today.day);
+    final firstDay = bucketEnd.subtract(Duration(days: window - 1));
     final count = ((window - 1) ~/ size) + 1;
 
     final days = List<DateTime>.generate(
-        count, (i) => start.add(Duration(days: i * size)));
+        count, (i) => firstDay.add(Duration(days: i * size)));
 
     final buckets = <Map<String, dynamic>?>[];
     for (var i = 0; i < count; i++) {

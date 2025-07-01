@@ -170,6 +170,9 @@ bottomTitles: AxisTitles(
                           ))
                       .toList(),
                   touchTooltipData: LineTouchTooltipData(
+                    fitInsideHorizontally: true,
+                    tooltipPadding:
+                        const EdgeInsets.symmetric(horizontal: 8),
                     getTooltipItems: (spots) {
                       if (spots.isEmpty) return [];
                       final i = spots.first.x.toInt();
