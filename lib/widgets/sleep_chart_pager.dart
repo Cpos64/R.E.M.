@@ -67,16 +67,16 @@ class _SleepChartPagerState extends State<SleepChartPager> {
     final size = _bucketSizeForWindow(window);
     final today = DateTime.now();
     final bucketEnd = DateTime(today.year, today.month, today.day);
-    final firstDay = bucketEnd.subtract(Duration(days: window - 1));
-    final count = ((window - 1) ~/ size) + 1;
+    final bucketStart = bucketEnd.subtract(Duration(days: window - 1));
 
-    final days =
-        List<DateTime>.generate(count, (i) => firstDay.add(Duration(days: i * size)));
-
+    final days = <DateTime>[];
     final buckets = <Map<String, dynamic>?>[];
-    for (var i = 0; i < count; i++) {
-      final bStart = days[i];
-      final bEnd = bStart.add(Duration(days: size));
+
+    for (var end = bucketEnd; !end.isBefore(bucketStart); end = end.subtract(Duration(days: size))) {
+      final start = end.subtract(Duration(days: size - 1));
+      days.insert(0, start);
+      final bStart = start;
+      final bEnd = end.add(const Duration(days: 1));
       final entries = data.where((e) {
         final raw = e['date'];
         final dt = raw is DateTime
