@@ -2,6 +2,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+/// Convert a decimal hour value to a concrete [DateTime].
+DateTime _doubleToDateTime(double value) {
+  final h = value.floor();
+  final m = ((value - h) * 60).round();
+  return DateTime(1970, 1, 1).add(Duration(hours: h, minutes: m));
+}
+
 class SleepConsistencyChart extends StatelessWidget {
   final List<Map<String, dynamic>?> buckets;
   final List<DateTime> days;
@@ -116,9 +123,7 @@ final step = days.length <= 7
 
     // Format times
     String _fmt(double v) {
-      final h = v.floor();
-      final m = ((v - h) * 60).round();
-      return DateFormat.jm().format(DateTime(0, 0, 0, h, m));
+      return DateFormat.jm().format(_doubleToDateTime(v));
     }
     final avgBedStr = _fmt(avgBed);
     final avgAsleepStr = _fmt(avgAsleep);
