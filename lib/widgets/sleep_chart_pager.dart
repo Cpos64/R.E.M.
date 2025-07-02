@@ -33,7 +33,8 @@ class _SleepChartPagerState extends State<SleepChartPager> {
   }
 
   int _bucketSizeForWindow(int window) {
-    if (window == 90 || window == 365) return 7;
+    if (window == 90) return 7; // 3M → weekly buckets
+    // 1Y uses monthly buckets handled separately
     return 1;
   }
 
@@ -64,6 +65,82 @@ class _SleepChartPagerState extends State<SleepChartPager> {
 
   Map<String, List<dynamic>> _buildAggregated(
       List<Map<String, dynamic>> data, DateTime _, int window) {
+    if (window == 365) {
+      // Build 12 buckets based on calendar months
+      final today = DateTime.now();
+      var monthStart = DateTime(today.year, today.month, 1);
+
+      final days = <DateTime>[];
+      final buckets = <Map<String, dynamic>?>[];
+
+      for (var i = 0; i < 12; i++) {
+        final nextMonth = DateTime(monthStart.year, monthStart.month + 1, 1);
+        final monthEnd = nextMonth.subtract(const Duration(days: 1));
+        days.insert(0, monthEnd);
+
+        final entries = data.where((e) {
+          final raw = e['date'];
+          final dt = raw is DateTime
+              ? raw
+              : DateTime.parse(raw as String).toLocal();
+          return !dt.isBefore(monthStart) && dt.isBefore(nextMonth);
+        }).toList();
+
+        if (entries.isEmpty) {
+          buckets.add(null);
+        } else {
+          final len = entries.length;
+          double sumScore = 0,
+              sumTotal = 0,
+              sumDeep = 0,
+              sumRem = 0,
+              sumLight = 0,
+              sumAwake = 0,
+              sumBed = 0,
+              sumAsleep = 0,
+              sumWake = 0;
+
+          for (var e in entries) {
+            sumScore += (e['sleepScore'] as num?)?.toDouble() ?? 0.0;
+            sumTotal += _parseToMinutes(e['totalDuration'] ?? '0h0m').toDouble();
+            sumDeep += _parseToMinutes(e['deepSleep'] ?? '0h0m').toDouble();
+            sumRem += _parseToMinutes(e['remSleep'] ?? '0h0m').toDouble();
+            sumLight += _parseToMinutes(e['lightSleep'] ?? '0h0m').toDouble();
+            sumAwake += _parseToMinutes(e['awakeTime'] ?? '0h0m').toDouble();
+
+            final bedObj = _parseTimeObj(e['timeInBed'] as String?);
+            final asleepObj = _parseTimeObj(e['timeAsleep'] as String?);
+            final wakeObj = _parseTimeObj(e['timeAwake'] as String?);
+            final bedMin = _toMinutes(bedObj);
+            var asleepMin = _toMinutes(asleepObj);
+            var wakeMin = _toMinutes(wakeObj);
+            if (asleepObj != null && asleepMin < bedMin) asleepMin += 1440;
+            if (wakeObj != null && wakeMin < bedMin) wakeMin += 1440;
+            sumBed += bedMin.toDouble();
+            sumAsleep += asleepMin.toDouble();
+            sumWake += wakeMin.toDouble();
+          }
+
+          buckets.add({
+            'date': monthStart,
+            'sleepScore': sumScore / len,
+            'totalDuration': _fmtDuration(sumTotal / len),
+            'deepSleep': _fmtDuration(sumDeep / len),
+            'remSleep': _fmtDuration(sumRem / len),
+            'lightSleep': _fmtDuration(sumLight / len),
+            'awakeTime': _fmtDuration(sumAwake / len),
+            'timeInBed': _fmtTime(((sumBed / len) % 1440) / 60.0),
+            'timeAsleep': _fmtTime(((sumAsleep / len) % 1440) / 60.0),
+            'timeAwake': _fmtTime(((sumWake / len) % 1440) / 60.0),
+          });
+        }
+
+        monthStart = DateTime(monthStart.year, monthStart.month - 1, 1);
+      }
+
+      return {'days': days, 'buckets': buckets};
+    }
+
     final size = _bucketSizeForWindow(window);
     final today = DateTime.now();
     final bucketEnd = DateTime(today.year, today.month, today.day);
