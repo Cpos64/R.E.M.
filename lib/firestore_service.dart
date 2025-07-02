@@ -25,6 +25,22 @@ int parseToMinutes(String input) {
   return hours * 60 + mins;
 }
 
+/// Returns the minimal absolute difference in minutes between two times of day.
+/// The date portion of each `DateTime` is ignored.
+///
+/// Example:
+/// ```dart
+/// final a = DateTime(2024, 1, 1, 23, 45);
+/// final b = DateTime(2024, 1, 2, 0, 15);
+/// circularDiffMinutes(a, b); // -> 30
+/// ```
+int circularDiffMinutes(DateTime a, DateTime b) {
+  final minsA = a.hour * 60 + a.minute;
+  final minsB = b.hour * 60 + b.minute;
+  final diff  = (minsA - minsB).abs();
+  return min(diff, 1440 - diff);
+}
+
 final _sentiment = Sentiment();
 
 double _analyzeSentiment(String text) {
@@ -742,8 +758,8 @@ double _computeSleepScore({
   // 6) Consistency
   final avgBedDT  = _safeParseTime(averageBedtimeStr);
   final avgWakeDT = _safeParseTime(averageWakeTimeStr);
-  final bedDelta  = (inBedDT.difference(avgBedDT).inMinutes).abs();
-  final wakeDelta = (awakeDT.difference(avgWakeDT).inMinutes).abs();
+  final bedDelta  = circularDiffMinutes(inBedDT, avgBedDT);
+  final wakeDelta = circularDiffMinutes(awakeDT, avgWakeDT);
 
   double _subConsistency(int diff) {
     if (diff <= consistencyCutoff ~/ 2) {
