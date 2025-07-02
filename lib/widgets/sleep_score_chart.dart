@@ -15,8 +15,12 @@ class SleepScoreChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Thinning labels for longer windows
-    final labelInterval = days.length <= 7 ? 1.0 : (days.length / 6).ceilToDouble();
+/// show every single date for up to 28 days (7 d or 4 w),
+/// otherwise thin to ~6 labels
+final labelInterval = days.length <= 28
+    ? 1.0
+    : (days.length / 6).ceilToDouble();
+
 
     // Determine bucket size in days for tooltip ranges
     final bucketSize = days.length > 1
@@ -113,11 +117,23 @@ bottomTitles: AxisTitles(
   sideTitles: SideTitles(
     showTitles: true,
     interval: labelInterval,
-    getTitlesWidget: (double value, TitleMeta meta) {
+    getTitlesWidget: (value, meta) {
+      // only integer indices
       if (value % 1 != 0) return const SizedBox();
       final idx = value.toInt();
-      if (idx < 0 || idx >= days.length) return const SizedBox();
-      // M/d gives e.g. 4/24, 5/2
+      if (idx < 0) return const SizedBox();
+
+      // 3 m & 1 y views use fewer buckets than days:
+      if (buckets.length != days.length) {
+        // use your existing formatRange helper to label each bucket
+        return Text(
+          formatRange(idx),
+          style: const TextStyle(fontSize: 10),
+        );
+      }
+
+      // otherwise (7 d or 4 w), show every date
+      if (idx >= days.length) return const SizedBox();
       return Text(
         DateFormat('M/d').format(days[idx]),
         style: const TextStyle(fontSize: 10),
@@ -125,6 +141,7 @@ bottomTitles: AxisTitles(
     },
   ),
 ),
+
 
                   topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
