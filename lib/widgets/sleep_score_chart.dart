@@ -200,9 +200,21 @@ bottomTitles: AxisTitles(
                               ? days[1].difference(days[0]).inDays
                               : 1;
                       // compute the start by subtracting (bucketSize - 1) days
-                      final startDate = endDate.subtract(Duration(days: bucketSize - 1));
-                      final dateStr   = '${DateFormat.MMMd().format(startDate)} – '
-                         '${DateFormat.MMMd().format(endDate)}';
+                      final startDate = bucketSize > 1
+                          ? endDate.subtract(Duration(days: bucketSize - 1))
+                          : endDate;
+
+                      // show a single date for daily buckets, otherwise a range
+                      final dateStr = bucketSize <= 1
+                          ? DateFormat.MMMd().format(endDate)
+                          : () {
+                              final sameYear = startDate.year == endDate.year;
+                              final sFmt = DateFormat('MMM d').format(startDate);
+                              final eFmt = sameYear
+                                  ? DateFormat('MMM d').format(endDate)
+                                  : DateFormat('MMM d, yyyy').format(endDate);
+                              return '$sFmt – $eFmt';
+                            }();
                       final scoreValue =
                           (buckets[i]?['sleepScore'] as num?)?.round() ?? 0;
                       return [
