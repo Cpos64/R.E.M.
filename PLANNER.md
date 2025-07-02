@@ -1,20 +1,20 @@
 # Planner for R.E.M. APP Project
 
 ## 📅 Today
-[] Restructure sleep screen to be like Garmin's sleep window and get rid of sleep logs... dont need them
+[X] Restructure sleep screen to be like Garmin's sleep window and get rid of sleep logs... dont need them
 
-[] Update Home, Me, and ChatSLEEPT windows with 04-mini-high and update Navigation window
+[] Update Home, Me, and Dream windows with 04-mini-high
 
 [] Come up with clear Mission statement and Target Demographic
 
 [] Add recommendations on home screen
 
-[] Fix avg labels on charts
+[X] Fix avg labels on charts
 - hard to see labels on 30-d and 90-d charts
 ## 📆 Tomorrow
 [] Email app developers and ask quality questions
 
-
+[] Email dream doctors and ask them about their favorite sleep metrics, the best sleep data, and what they don't currently see in most sleep apps that would be valuable. Also ask how they would calculate sleep score 
 ## ⏳ Backlog
 [] Shareable option to other social medias
 - ability to export post/log as a picture so the user can share on other social media platforms and increase REM exposure
@@ -34,4 +34,4 @@
 
 [] Update dream logs to include ChatSLEEPT for image creation of dreams
 
-[] Email dream doctors and ask them about their favorite sleep metrics, the best sleep data, and what they don't currently see in most sleep apps that would be valuable. Also ask how they would calculate sleep score 
+
