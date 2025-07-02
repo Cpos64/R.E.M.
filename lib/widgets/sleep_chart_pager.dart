@@ -66,24 +66,25 @@ class _SleepChartPagerState extends State<SleepChartPager> {
   Map<String, List<dynamic>> _buildAggregated(
       List<Map<String, dynamic>> data, DateTime _, int window) {
     if (window == 365) {
-      // Build 12 buckets based on calendar months
+      // Build 13 fixed 4‑week buckets anchored on today
       final today = DateTime.now();
-      var monthStart = DateTime(today.year, today.month, 1);
+      final bucketEnd = DateTime(today.year, today.month, today.day);
 
       final days = <DateTime>[];
       final buckets = <Map<String, dynamic>?>[];
 
-      for (var i = 0; i < 12; i++) {
-        final nextMonth = DateTime(monthStart.year, monthStart.month + 1, 1);
-        final monthEnd = nextMonth.subtract(const Duration(days: 1));
-        days.insert(0, monthEnd);
+      for (var i = 0; i < 13; i++) {
+        final end = bucketEnd.subtract(Duration(days: 28 * i));
+        final start = end.subtract(const Duration(days: 27));
+        days.insert(0, end);
+        final bEnd = end.add(const Duration(days: 1));
 
         final entries = data.where((e) {
           final raw = e['date'];
           final dt = raw is DateTime
               ? raw
               : DateTime.parse(raw as String).toLocal();
-          return !dt.isBefore(monthStart) && dt.isBefore(nextMonth);
+          return !dt.isBefore(start) && dt.isBefore(bEnd);
         }).toList();
 
         if (entries.isEmpty) {
@@ -122,7 +123,7 @@ class _SleepChartPagerState extends State<SleepChartPager> {
           }
 
           buckets.add({
-            'date': monthStart,
+            'date': start,
             'sleepScore': sumScore / len,
             'totalDuration': _fmtDuration(sumTotal / len),
             'deepSleep': _fmtDuration(sumDeep / len),
@@ -134,8 +135,6 @@ class _SleepChartPagerState extends State<SleepChartPager> {
             'timeAwake': _fmtTime(((sumWake / len) % 1440) / 60.0),
           });
         }
-
-        monthStart = DateTime(monthStart.year, monthStart.month - 1, 1);
       }
 
       return {'days': days, 'buckets': buckets};
