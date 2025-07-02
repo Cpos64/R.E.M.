@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 
 /// ── 1) The core SleepScoreChart ───────────────────────────────────────────────
 class SleepScoreChart extends StatelessWidget {
@@ -51,6 +52,30 @@ final labelInterval = days.length <= 28
     final avgScore = scoreList.isEmpty
         ? 0.0
         : scoreList.reduce((a, b) => a + b) / scoreList.length;
+
+    // 1) Highest & lowest scores
+    final scores = buckets
+        .where((b) => b != null && b!['sleepScore'] != null)
+        .map((b) => (b!['sleepScore'] as num).toDouble())
+        .toList();
+    final maxScore = scores.isEmpty ? 0.0 : scores.reduce(max);
+    final minScore = scores.isEmpty ? 0.0 : scores.reduce(min);
+
+    // 2) % of "good" nights (score >= 80)
+    final goodCount = scores.where((s) => s >= 80).length;
+    final percentGood = scores.isEmpty ? 0.0 : (goodCount / scores.length) * 100;
+
+    // 3) Change vs previous period
+    //    compute avg of the same number of buckets immediately before this window
+    final prevBuckets = _getPreviousBuckets(buckets);
+    final prevScores = prevBuckets
+        .where((b) => b != null && b!['sleepScore'] != null)
+        .map((b) => (b!['sleepScore'] as num).toDouble())
+        .toList();
+    final prevAvg = prevScores.isEmpty
+        ? 0.0
+        : prevScores.reduce((a, b) => a + b) / prevScores.length;
+    final changePct = prevAvg == 0 ? 0.0 : ((avgScore - prevAvg) / prevAvg) * 100;
 
     // 3️⃣ Build spots from buckets (casting to num then to double)
     final spots = <FlSpot>[];
@@ -271,6 +296,19 @@ bottomTitles: AxisTitles(
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 16,
+            children: [
+              Text('High: ${maxScore.round()}'),
+              Text('Low: ${minScore.round()}'),
+              Text('% Good: ${percentGood.round()}%'),
+              Text("Δ vs prev: ${changePct >= 0 ? "+" : ""}${changePct.round()}%"),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -314,4 +352,11 @@ class _FadingSleepScoreChartState extends State<FadingSleepScoreChart> {
       ),
     );
   }
+}
+
+List<Map<String, dynamic>?> _getPreviousBuckets(
+    List<Map<String, dynamic>?> current) {
+  // Placeholder implementation: in a real app this would fetch the
+  // same number of buckets immediately preceding the provided list.
+  return [];
 }
