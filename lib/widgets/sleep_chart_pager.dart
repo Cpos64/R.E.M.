@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'sleep_score_chart.dart';
 import 'sleep_stage_bar_chart.dart';
 import 'sleep_consistency_chart.dart';
@@ -63,6 +64,16 @@ class _SleepChartPagerState extends State<SleepChartPager> {
     return DateFormat.jm().format(DateTime(0, 0, 0, h, m));
   }
 
+  int _circularMeanMinutes(List<int> mins) {
+    if (mins.isEmpty) return 0;
+    final rad = mins.map((m) => 2 * pi * (m / 1440));
+    final x = rad.map(cos).reduce((a, b) => a + b) / rad.length;
+    final y = rad.map(sin).reduce((a, b) => a + b) / rad.length;
+    final ang = atan2(y, x);
+    final norm = ang < 0 ? ang + 2 * pi : ang;
+    return (norm / (2 * pi) * 1440).round();
+  }
+
   Map<String, List<dynamic>> _buildAggregated(
       List<Map<String, dynamic>> data, DateTime _, int window) {
     if (window == 365) {
@@ -96,10 +107,8 @@ class _SleepChartPagerState extends State<SleepChartPager> {
               sumDeep = 0,
               sumRem = 0,
               sumLight = 0,
-              sumAwake = 0,
-              sumBed = 0,
-              sumAsleep = 0,
-              sumWake = 0;
+              sumAwake = 0;
+          final bedMinutes = <int>[], asleepMinutes = <int>[], wakeMinutes = <int>[];
 
           for (var e in entries) {
             sumScore += (e['sleepScore'] as num?)?.toDouble() ?? 0.0;
@@ -117,10 +126,14 @@ class _SleepChartPagerState extends State<SleepChartPager> {
             var wakeMin = _toMinutes(wakeObj);
             if (asleepObj != null && asleepMin < bedMin) asleepMin += 1440;
             if (wakeObj != null && wakeMin < bedMin) wakeMin += 1440;
-            sumBed += bedMin.toDouble();
-            sumAsleep += asleepMin.toDouble();
-            sumWake += wakeMin.toDouble();
+            bedMinutes.add(bedMin);
+            asleepMinutes.add(asleepMin);
+            wakeMinutes.add(wakeMin);
           }
+
+          final bedMean = _circularMeanMinutes(bedMinutes);
+          final asleepMean = _circularMeanMinutes(asleepMinutes);
+          final wakeMean = _circularMeanMinutes(wakeMinutes);
 
           buckets.add({
             'date': start,
@@ -130,9 +143,9 @@ class _SleepChartPagerState extends State<SleepChartPager> {
             'remSleep': _fmtDuration(sumRem / len),
             'lightSleep': _fmtDuration(sumLight / len),
             'awakeTime': _fmtDuration(sumAwake / len),
-            'timeInBed': _fmtTime(((sumBed / len) % 1440) / 60.0),
-            'timeAsleep': _fmtTime(((sumAsleep / len) % 1440) / 60.0),
-            'timeAwake': _fmtTime(((sumWake / len) % 1440) / 60.0),
+            'timeInBed': _fmtTime((bedMean % 1440) / 60.0),
+            'timeAsleep': _fmtTime((asleepMean % 1440) / 60.0),
+            'timeAwake': _fmtTime((wakeMean % 1440) / 60.0),
           });
         }
       }
@@ -172,10 +185,8 @@ class _SleepChartPagerState extends State<SleepChartPager> {
           sumDeep = 0,
           sumRem = 0,
           sumLight = 0,
-          sumAwake = 0,
-          sumBed = 0,
-          sumAsleep = 0,
-          sumWake = 0;
+          sumAwake = 0;
+          final bedMinutes = <int>[], asleepMinutes = <int>[], wakeMinutes = <int>[];
 
       for (var e in entries) {
         sumScore += (e['sleepScore'] as num?)?.toDouble() ?? 0.0;
@@ -193,10 +204,14 @@ class _SleepChartPagerState extends State<SleepChartPager> {
         var wakeMin = _toMinutes(wakeObj);
         if (asleepObj != null && asleepMin < bedMin) asleepMin += 1440;
         if (wakeObj != null && wakeMin < bedMin) wakeMin += 1440;
-        sumBed += bedMin.toDouble();
-        sumAsleep += asleepMin.toDouble();
-        sumWake += wakeMin.toDouble();
+        bedMinutes.add(bedMin);
+        asleepMinutes.add(asleepMin);
+        wakeMinutes.add(wakeMin);
       }
+
+      final bedMean = _circularMeanMinutes(bedMinutes);
+      final asleepMean = _circularMeanMinutes(asleepMinutes);
+      final wakeMean = _circularMeanMinutes(wakeMinutes);
 
       buckets.add({
         'date': bStart,
@@ -206,9 +221,9 @@ class _SleepChartPagerState extends State<SleepChartPager> {
         'remSleep': _fmtDuration(sumRem / len),
         'lightSleep': _fmtDuration(sumLight / len),
         'awakeTime': _fmtDuration(sumAwake / len),
-        'timeInBed': _fmtTime(((sumBed / len) % 1440) / 60.0),
-        'timeAsleep': _fmtTime(((sumAsleep / len) % 1440) / 60.0),
-        'timeAwake': _fmtTime(((sumWake / len) % 1440) / 60.0),
+        'timeInBed': _fmtTime((bedMean % 1440) / 60.0),
+        'timeAsleep': _fmtTime((asleepMean % 1440) / 60.0),
+        'timeAwake': _fmtTime((wakeMean % 1440) / 60.0),
       });
     }
 
