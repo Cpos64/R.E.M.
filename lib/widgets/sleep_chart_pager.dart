@@ -275,7 +275,11 @@ class _SleepChartPagerState extends State<SleepChartPager> {
                buckets: buckets,
                days: days,
                rawData: rawEntries),
-              SleepStageBarChart(buckets: buckets, days: days),
+              SleepStageBarChart(
+                buckets: buckets,
+                days: days,
+                rawData: widget.sleepData,
+              ),
               SizedBox(
                 height: 380,
                 child: SleepConsistencyChart(buckets: buckets, days: days),
