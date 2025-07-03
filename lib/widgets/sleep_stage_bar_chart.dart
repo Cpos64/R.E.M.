@@ -257,8 +257,31 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
 final avgAwake = totals.isEmpty ? 0.0 : sumAwake / totals.length;
 final deepPct  = sumTotal == 0 ? 0.0 : (sumDeep / sumTotal) * 100;
 final remPct   = sumTotal == 0 ? 0.0 : (sumRem / sumTotal) * 100;
-final efficiency = sumTotal == 0 ? 0.0 : ((sumTotal - sumAwake) / sumTotal) * 100;
-final waso = avgAwake;
+// Compute sleep efficiency and WASO percentage using raw data
+final startCurrent = widget.days.first.subtract(Duration(days: _bucketSize - 1));
+final endCurrent = widget.days.last;
+double bedMinutes = 0.0, sleepMinutes = 0.0, awakeMinutes = 0.0;
+for (var e in widget.rawData) {
+  final rawDate = e['date'];
+  final dt = rawDate is DateTime
+      ? rawDate
+      : DateTime.parse(rawDate.toString()).toLocal();
+  if (dt.isBefore(startCurrent) || dt.isAfter(endCurrent)) continue;
+  final bedObj = _parseTimeObj(e['timeInBed'] as String?);
+  final wakeObj = _parseTimeObj(e['timeAwake'] as String?);
+  if (bedObj != null && wakeObj != null) {
+    var b = _toMinutes(bedObj).toDouble();
+    var w = _toMinutes(wakeObj).toDouble();
+    if (w < b) w += 1440;
+    bedMinutes += w - b;
+  }
+  final tot = _parseToMinutes(e['totalDuration']);
+  final awake = _parseToMinutes(e['awakeTime']);
+  sleepMinutes += tot - awake;
+  awakeMinutes += awake;
+}
+final sleepEfficiency = bedMinutes == 0 ? 0.0 : (sleepMinutes / bedMinutes) * 100;
+final wasoPct = bedMinutes == 0 ? 0.0 : (awakeMinutes / bedMinutes) * 100;
 // Placeholder for REM-onset latency; data not available
 final remLatency = 0.0;
 
@@ -509,16 +532,12 @@ bottomTitles: AxisTitles(
                           spacing: 12,
                           runSpacing: 6,
                           children: [
-                            Text('Avg: ${_formatDuration(avgTotal)}'),
-                            Text('Awake: ${avgAwake.round()}m'),
-                            Text('% Deep: ${deepPct.round()}%'),
-                            Text('% REM: ${remPct.round()}%'),
-                            Text('Restorative: ${_formatDuration(avgRest)}'),
-                            Text('REM latency: ${remLatency.round()}m'),
-                            Text('Efficiency: ${efficiency.round()}%'),
-                            Text('WASO: ${waso.round()}m'),
-                            Text("Δ Total: ${changeTotalPct >= 0 ? "+" : ""}${changeTotalPct.round()}%"),
-                            Text("Δ Rest: ${changeRestPct >= 0 ? "+" : ""}${changeRestPct.round()}%"),
+                              Text('Awake: ${avgAwake.round()}m'),
+                              Text('% Deep: ${deepPct.round()}%'),
+                              Text('% REM: ${remPct.round()}%'),
+                              Text('Restorative: ${_formatDuration(avgRest)}'),
+                              Text('Sleep Efficiency: ${sleepEfficiency.round()}%'),
+                              Text('WASO: ${wasoPct.round()}%'),
                           ],
                         ),
                       ],

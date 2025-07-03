@@ -844,15 +844,10 @@ Map<String, List<dynamic>> _buildAggregated(
                     '${DateFormat.MMMd().format(days.first)} – ${DateFormat.MMMd().format(days.last)}';
                 final valid = buckets.where((e) => e != null).cast<Map<String, dynamic>>().toList();
                 double avgScore = 0;
-                double avgStageDuration = 0;
                 double avgConsistency = 0;
                 if (valid.isNotEmpty) {
                   avgScore = valid
                           .map((e) => (e['sleepScore'] as num?)?.toDouble() ?? 0)
-                          .reduce((a, b) => a + b) /
-                      valid.length;
-                  avgStageDuration = valid
-                          .map((e) => _parseToMinutes(e['totalDuration'] ?? '0h0m') / 60.0)
                           .reduce((a, b) => a + b) /
                       valid.length;
                   double sumBed = 0, sumWake = 0;
@@ -938,13 +933,6 @@ Map<String, List<dynamic>> _buildAggregated(
                     SizedBox(
                       height: 260,
                       child: SleepStageBarChart(buckets: buckets, days: days),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(
-                        'Average Stage Duration: ${avgStageDuration.toStringAsFixed(1)}h',
-                        textAlign: TextAlign.center,
-                      ),
                     ),
                     SizedBox(
                       height: 380,
