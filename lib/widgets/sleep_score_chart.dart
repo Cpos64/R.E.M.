@@ -30,6 +30,8 @@ final labelInterval = days.length <= 28
     final bucketSize = days.length > 1
         ? days[1].difference(days[0]).inDays
         : 1;
+    // Previous period duration = bucketSize * number of buckets
+    final prevDuration = bucketSize * days.length;
 
     String formatRange(int idx) {
       final start = days[idx];
@@ -70,8 +72,9 @@ final labelInterval = days.length <= 28
 
     // 3) Change vs previous period
     //    compute avg of the same number of buckets immediately before this window
-    final startPrev = days.first.subtract(Duration(days: days.length));
-    final endPrev   = days.first.subtract(Duration(days: 1));
+    final startPrev =
+        days.first.subtract(Duration(days: prevDuration));
+    final endPrev   = days.first.subtract(const Duration(days: 1));
     final prevList = rawData
       .where((entry) =>
         !entry.date.isBefore(startPrev) &&
