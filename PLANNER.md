@@ -1,7 +1,11 @@
 # Planner for R.E.M. APP Project
 
 ## 📅 Today
-[X] Restructure sleep screen to be like Garmin's sleep window and get rid of sleep logs... dont need them
+[] Fix previous change percentage metric
+
+[] Add metrics beneath sleep stage chart
+
+[] Add metrics beneath sleep consistency chart
 
 [] Update Home, Me, and Dream windows with 04-mini-high
 
@@ -9,8 +13,6 @@
 
 [] Add recommendations on home screen
 
-[X] Fix avg labels on charts
-- hard to see labels on 30-d and 90-d charts
 ## 📆 Tomorrow
 [] Email app developers and ask quality questions
 

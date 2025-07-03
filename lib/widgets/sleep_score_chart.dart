@@ -2,16 +2,19 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
+import '../models/sleep_entry.dart'; 
 
 /// ── 1) The core SleepScoreChart ───────────────────────────────────────────────
 class SleepScoreChart extends StatelessWidget {
   final List<Map<String, dynamic>?> buckets;
   final List<DateTime> days;
+  final List<SleepEntry> rawData;
 
   const SleepScoreChart({
     Key? key,
     required this.buckets,
     required this.days,
+    required this.rawData,
   }) : super(key: key);
 
   @override
@@ -67,15 +70,20 @@ final labelInterval = days.length <= 28
 
     // 3) Change vs previous period
     //    compute avg of the same number of buckets immediately before this window
-    final prevBuckets = _getPreviousBuckets(buckets);
-    final prevScores = prevBuckets
-        .where((b) => b != null && b!['sleepScore'] != null)
-        .map((b) => (b!['sleepScore'] as num).toDouble())
-        .toList();
-    final prevAvg = prevScores.isEmpty
-        ? 0.0
-        : prevScores.reduce((a, b) => a + b) / prevScores.length;
-    final changePct = prevAvg == 0 ? 0.0 : ((avgScore - prevAvg) / prevAvg) * 100;
+    final startPrev = days.first.subtract(Duration(days: days.length));
+    final endPrev   = days.first.subtract(Duration(days: 1));
+    final prevList = rawData
+      .where((entry) =>
+        !entry.date.isBefore(startPrev) &&
+        !entry.date.isAfter(endPrev))
+      .map((entry) => entry.sleepScore.toDouble())
+      .toList();
+    final prevAvg = prevList.isEmpty
+      ? 0.0
+      : prevList.reduce((a, b) => a + b) / prevList.length;
+    final changePct = prevAvg == 0.0
+      ? 0.0
+      : ((avgScore - prevAvg) / prevAvg) * 100;
 
     // 3️⃣ Build spots from buckets (casting to num then to double)
     final spots = <FlSpot>[];
@@ -318,11 +326,13 @@ bottomTitles: AxisTitles(
 class FadingSleepScoreChart extends StatefulWidget {
   final List<Map<String, dynamic>?> buckets;
   final List<DateTime> days;
+  final List<SleepEntry> rawData;
 
   const FadingSleepScoreChart({
     Key? key,
     required this.buckets,
     required this.days,
+    required this.rawData,
   }) : super(key: key);
 
   @override
@@ -349,14 +359,8 @@ class _FadingSleepScoreChartState extends State<FadingSleepScoreChart> {
       child: SleepScoreChart(
         buckets: widget.buckets,
         days: widget.days,
+        rawData: widget.rawData,
       ),
     );
   }
-}
-
-List<Map<String, dynamic>?> _getPreviousBuckets(
-    List<Map<String, dynamic>?> current) {
-  // Placeholder implementation: in a real app this would fetch the
-  // same number of buckets immediately preceding the provided list.
-  return [];
 }

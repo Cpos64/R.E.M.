@@ -4,6 +4,7 @@ import 'sleep_score_chart.dart';
 import 'sleep_stage_bar_chart.dart';
 import 'sleep_consistency_chart.dart';
 import 'package:intl/intl.dart';
+import '../models/sleep_entry.dart'; 
 
 class SleepChartPager extends StatefulWidget {
   final List<Map<String, dynamic>> sleepData;
@@ -242,6 +243,16 @@ class _SleepChartPagerState extends State<SleepChartPager> {
 
   @override
   Widget build(BuildContext context) {
+    // build a strongly‐typed list for the SleepScoreChart
+    final rawEntries = widget.sleepData.map((e) {
+      final raw = e['date'];
+      final date = raw is DateTime
+          ? raw
+          : DateTime.parse(raw as String).toLocal();
+      final score = (e['sleepScore'] as num?)?.toDouble() ?? 0.0;
+      return SleepEntry(date: date, sleepScore: score);
+    }).toList();
+
     // 1️⃣ Determine date range:
     final today = DateTime.now();
     final windowStart = DateTime(today.year, today.month, today.day)
@@ -260,7 +271,10 @@ class _SleepChartPagerState extends State<SleepChartPager> {
             controller: _controller,
             onPageChanged: (i) => setState(() => _currentPage = i),
             children: [
-              SleepScoreChart(buckets: buckets, days: days),
+              SleepScoreChart(
+               buckets: buckets,
+               days: days,
+               rawData: rawEntries),
               SleepStageBarChart(buckets: buckets, days: days),
               SizedBox(
                 height: 380,

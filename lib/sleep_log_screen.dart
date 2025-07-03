@@ -8,6 +8,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'widgets/sleep_stage_bar_chart.dart';
 import 'widgets/sleep_consistency_chart.dart';
+import '../models/sleep_entry.dart';
 
 /// Converts a "XhYm" string into total minutes.
 int _parseToMinutes(String input) {
@@ -822,7 +823,16 @@ Map<String, List<dynamic>> _buildAggregated(
                 if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
                 if (!snap.hasData) return const Center(child: CircularProgressIndicator());
 
-                final data = snap.data!;
+              final data = snap.data!;
+              // ── build a strongly-typed list for rawData ──
+              final sleepEntries = data.map((e) {
+                final raw = e['date'];
+                final date = raw is DateTime
+                    ? raw
+                    : DateTime.parse(raw as String).toLocal();
+                final score = (e['sleepScore'] as num?)?.toDouble() ?? 0.0;
+                return SleepEntry(date: date, sleepScore: score);
+              }).toList();
                 final windowStart = _rangeStart;
                 final result = _buildAggregated(data, windowStart, selectedDays);
                 final days = result['days']!.cast<DateTime>();
@@ -910,7 +920,10 @@ Map<String, List<dynamic>> _buildAggregated(
                     ),
                     SizedBox(
                       height: 260,
-                      child: SleepScoreChart(buckets: buckets, days: days),
+                      child: SleepScoreChart(
+                        buckets: buckets,
+                        days: days,
+                        rawData: sleepEntries,),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
