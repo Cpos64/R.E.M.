@@ -937,7 +937,10 @@ Map<String, List<dynamic>> _buildAggregated(
                     ),
                     SizedBox(
                       height: 260,
-                      child: SleepStageBarChart(buckets: buckets, days: days),
+                      child: SleepStageBarChart(
+                        buckets: buckets,
+                         days: days,
+                         rawData: data),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
