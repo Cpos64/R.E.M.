@@ -7,11 +7,13 @@ import 'package:intl/intl.dart';
 class SleepStageBarChart extends StatefulWidget {
   final List<Map<String, dynamic>?> buckets;
   final List<DateTime> days;
+  final List<Map<String, dynamic>> rawData;
 
   const SleepStageBarChart({
     Key? key,
     required this.buckets,
     required this.days,
+    required this.rawData,
   }) : super(key: key);
 
   @override
@@ -233,6 +235,7 @@ final valid = widget.buckets
 
 final totals = <double>[];
 final restTotals = <double>[];
+double sumDeep = 0.0, sumRem = 0.0, sumAwake = 0.0, sumTotal = 0.0;
 
 for (var entry in valid) {
   final deep = _parseToMinutes(entry['deepSleep']);
@@ -243,10 +246,45 @@ for (var entry in valid) {
 
   totals.add(total);
   restTotals.add(deep + rem);
+  sumDeep  += deep;
+  sumRem   += rem;
+  sumAwake += awake;
+  sumTotal += total;
 }
 
 final avgTotal = totals.isEmpty ? 0.0 : totals.reduce((a, b) => a + b) / totals.length;
 final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) / restTotals.length;
+final avgAwake = totals.isEmpty ? 0.0 : sumAwake / totals.length;
+final deepPct  = sumTotal == 0 ? 0.0 : (sumDeep / sumTotal) * 100;
+final remPct   = sumTotal == 0 ? 0.0 : (sumRem / sumTotal) * 100;
+final efficiency = sumTotal == 0 ? 0.0 : ((sumTotal - sumAwake) / sumTotal) * 100;
+final waso = avgAwake;
+// Placeholder for REM-onset latency; data not available
+final remLatency = 0.0;
+
+// ── Change vs previous period ──
+final prevDurationDays = _bucketSize * widget.days.length;
+final startPrev = widget.days.first
+    .subtract(Duration(days: prevDurationDays));
+final endPrev   = widget.days.first.subtract(const Duration(days: 1));
+
+double sumPrevTotal = 0.0, sumPrevRest = 0.0;
+for (var e in widget.rawData) {
+  final dt = e['date'] as DateTime?;
+  if (dt == null) continue;
+  if (!dt.isBefore(startPrev) && !dt.isAfter(endPrev)) {
+    sumPrevTotal += _parseToMinutes(e['totalDuration']);
+    sumPrevRest  += _parseToMinutes(e['deepSleep']) +
+                    _parseToMinutes(e['remSleep']);
+  }
+}
+
+final changeTotalPct = sumPrevTotal == 0
+    ? 0.0
+    : ((sumTotal - sumPrevTotal) / sumPrevTotal) * 100;
+final changeRestPct = sumPrevRest == 0
+    ? 0.0
+    : ((sumDeep + sumRem - sumPrevRest) / sumPrevRest) * 100;
 
 
     // Compute maxY for chart padding
@@ -460,9 +498,27 @@ bottomTitles: AxisTitles(
                             _LegendItem(label: 'REM', color: Color(0xFFCE93D8)),
                             _LegendItem(label: 'Light', color: Color(0xFFFFF59D)),
                             _LegendItem(label: 'Awake', color: Color(0xFFE57373)),
-                            _LegendLineItem(label: 'Avg Rest', color: Colors.greenAccent),
-                            _LegendLineItem(label: 'Avg Total', color: Colors.blueAccent),
+                          _LegendLineItem(label: 'Avg Rest', color: Colors.greenAccent),
+                          _LegendLineItem(label: 'Avg Total', color: Colors.blueAccent),
 
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 12,
+                          runSpacing: 6,
+                          children: [
+                            Text('Avg: ${_formatDuration(avgTotal)}'),
+                            Text('Awake: ${avgAwake.round()}m'),
+                            Text('% Deep: ${deepPct.round()}%'),
+                            Text('% REM: ${remPct.round()}%'),
+                            Text('Restorative: ${_formatDuration(avgRest)}'),
+                            Text('REM latency: ${remLatency.round()}m'),
+                            Text('Efficiency: ${efficiency.round()}%'),
+                            Text('WASO: ${waso.round()}m'),
+                            Text("Δ Total: ${changeTotalPct >= 0 ? "+" : ""}${changeTotalPct.round()}%"),
+                            Text("Δ Rest: ${changeRestPct >= 0 ? "+" : ""}${changeRestPct.round()}%"),
                           ],
                         ),
                       ],
