@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'widgets/sleep_stage_bar_chart.dart';
 import 'widgets/sleep_consistency_chart.dart';
 import '../models/sleep_entry.dart';
+import 'dart:math';
 
 /// Converts a "XhYm" string into total minutes.
 int _parseToMinutes(String input) {
@@ -844,52 +845,52 @@ Map<String, List<dynamic>> _buildAggregated(
                     '${DateFormat.MMMd().format(days.first)} – ${DateFormat.MMMd().format(days.last)}';
                 final valid = buckets.where((e) => e != null).cast<Map<String, dynamic>>().toList();
                 double avgScore = 0;
-                double avgConsistency = 0;
+                String avgBedStr = '---', avgAsleepStr = '---', avgWakeStr = '---';
+                String avgLatencyStr = '---';
+                String bedVarStr = '---', wakeVarStr = '---';
                 if (valid.isNotEmpty) {
                   avgScore = valid
                           .map((e) => (e['sleepScore'] as num?)?.toDouble() ?? 0)
                           .reduce((a, b) => a + b) /
                       valid.length;
-                  double sumBed = 0, sumWake = 0;
-                  double _parse(String? t) {
-                    if (t == null || t.isEmpty) return 0.0;
-                    final iso = DateTime.tryParse(t);
-                    if (iso != null) return iso.hour + iso.minute / 60.0;
-                    try {
-                      final dt = DateFormat.jm().parse(t);
-                      return dt.hour + dt.minute / 60.0;
-                    } catch (_) {
-                      return 0.0;
+
+                  final bedMinutes = <int>[];
+                  final asleepMinutes = <int>[];
+                  final wakeMinutes = <int>[];
+                  final latency = <double>[];
+
+                  for (var e in valid) {
+                    final bedObj = _parseTimeObj(e['timeInBed'] as String?);
+                    final asleepObj = _parseTimeObj(e['timeAsleep'] as String?);
+                    final wakeObj = _parseTimeObj(e['timeAwake'] as String?);
+                    final bedMin = _toMinutes(bedObj);
+                    var asleepMin = _toMinutes(asleepObj);
+                    var wakeMin = _toMinutes(wakeObj);
+                    if (asleepObj != null && asleepMin < bedMin) asleepMin += 1440;
+                    if (wakeObj != null && wakeMin < bedMin) wakeMin += 1440;
+                    if (bedObj != null) bedMinutes.add(bedMin);
+                    if (asleepObj != null) asleepMinutes.add(asleepMin);
+                    if (wakeObj != null) wakeMinutes.add(wakeMin);
+                    if (bedObj != null && asleepObj != null) {
+                      latency.add((asleepMin - bedMin).toDouble());
                     }
                   }
-                  for (var e in valid) {
-                    final bed = _parse(e['timeInBed'] as String?);
-                    final wake = _parse(e['timeAwake'] as String?);
-                    final bedRel = bed > 12 ? bed - 24 : bed;
-                    sumBed += bedRel;
-                    sumWake += wake;
-                  }
-                  final avgBed = sumBed / valid.length;
-                  final avgWake = sumWake / valid.length;
-                  double _subC(int diff) {
-                    if (diff <= consistencyCutoff ~/ 2) {
-                      return maxConsistencyHalfPts;
-                    } else if (diff <= consistencyCutoff) {
-                      return (consistencyCutoff - diff) / (consistencyCutoff ~/ 2) * maxConsistencyHalfPts;
-                    } else {
-                      return 0.0;
-                    }
-                  }
-                  double total = 0;
-                  for (var e in valid) {
-                    final bed = _parse(e['timeInBed'] as String?);
-                    final wake = _parse(e['timeAwake'] as String?);
-                    final bedRel = bed > 12 ? bed - 24 : bed;
-                    final bd = ((bedRel - avgBed).abs() * 60).round();
-                    final wd = ((wake - avgWake).abs() * 60).round();
-                    total += _subC(bd) + _subC(wd);
-                  }
-                  avgConsistency = total / valid.length / (2 * maxConsistencyHalfPts) * 100;
+
+                  final bedMean = bedMinutes.isEmpty ? 0 : _circularMeanMinutes(bedMinutes);
+                  final asleepMean = asleepMinutes.isEmpty ? 0 : _circularMeanMinutes(asleepMinutes);
+                  final wakeMean = wakeMinutes.isEmpty ? 0 : _circularMeanMinutes(wakeMinutes);
+
+                  avgBedStr = bedMinutes.isEmpty ? '---' : _fmtTime((bedMean % 1440) / 60.0);
+                  avgAsleepStr = asleepMinutes.isEmpty ? '---' : _fmtTime((asleepMean % 1440) / 60.0);
+                  avgWakeStr = wakeMinutes.isEmpty ? '---' : _fmtTime((wakeMean % 1440) / 60.0);
+
+                  final avgLatency = latency.isEmpty ? 0.0 : latency.reduce((a, b) => a + b) / latency.length;
+                  avgLatencyStr = latency.isEmpty ? '---' : _fmtDuration(avgLatency);
+
+                  final bedStd = bedMinutes.length < 2 ? 0.0 : _circularStdDevMinutes(bedMinutes);
+                  final wakeStd = wakeMinutes.length < 2 ? 0.0 : _circularStdDevMinutes(wakeMinutes);
+                  bedVarStr = bedMinutes.length < 2 ? '---' : '${bedStd.round()}m';
+                  wakeVarStr = wakeMinutes.length < 2 ? '---' : '${wakeStd.round()}m';
                 }
 
                 return Column(
@@ -943,9 +944,15 @@ Map<String, List<dynamic>> _buildAggregated(
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(
-                        'Average Consistency: ${avgConsistency.toStringAsFixed(1)}%',
-                        textAlign: TextAlign.center,
+                      child: Column(
+                        children: [
+                          Text('Average Time in Bed: $avgBedStr'),
+                          Text('Avg Asleep Time: $avgAsleepStr'),
+                          Text('Avg Wake Time: $avgWakeStr'),
+                          Text('Avg Sleep Latency: $avgLatencyStr'),
+                          Text('Bedtime Variability (Std Dev): $bedVarStr'),
+                          Text('Wake-Time Variability (Std Dev): $wakeVarStr'),
+                        ],
                       ),
                     ),
                   ],
