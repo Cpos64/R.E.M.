@@ -818,7 +818,10 @@ Map<String, List<dynamic>> _buildAggregated(
               ),
             ),
             StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _firestoreService.watchLogsForChartRange(_rangeStart, selectedDays),
+              stream: _firestoreService.watchLogsForChartRange(
+                _rangeStart.subtract(Duration(days: selectedDays)),
+                selectedDays * 2,
+              ),
               builder: (ctx, snap) {
                 if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
                 if (!snap.hasData) return const Center(child: CircularProgressIndicator());
