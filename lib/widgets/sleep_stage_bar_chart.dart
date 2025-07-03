@@ -65,6 +65,38 @@ String _formatDuration(double minutes) {
 }
 
 
+  // parse “h:mm a” times for timeInBed/timeAwake
+  DateTime? _parseTimeObj(String? text) {
+    if (text == null || text.isEmpty) return null;
+    final iso = DateTime.tryParse(text);
+    if (iso != null) return iso;
+    try {
+      return DateFormat.jm().parse(text);
+    } catch (_) {
+      return null;
+    }
+  }
+
+    // convert a DateTime into total minutes since midnight
+  int _toMinutes(DateTime? dt) {
+    if (dt == null) return 0;
+    return dt.hour * 60 + dt.minute;
+  }
+
+
+  // ── Compute total minutes spent in bed (includes sleep latency + WASO)
+  double _computeInBedMinutes(Map<String, dynamic>? entry) {
+    final bedObj  = _parseTimeObj(entry?['timeInBed']);
+    final wakeObj = _parseTimeObj(entry?['timeAwake']);
+    if (bedObj == null || wakeObj == null) return 0.0;
+    var bedMin  = _toMinutes(bedObj);
+    var wakeMin = _toMinutes(wakeObj);
+    // if crossing midnight
+    if (wakeMin < bedMin) wakeMin += 1440;
+    return (wakeMin - bedMin).toDouble();
+  }
+
+
 Widget _buildTooltipRow(String label, String value, Color swatch) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -257,10 +289,29 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
 final avgAwake = totals.isEmpty ? 0.0 : sumAwake / totals.length;
 final deepPct  = sumTotal == 0 ? 0.0 : (sumDeep / sumTotal) * 100;
 final remPct   = sumTotal == 0 ? 0.0 : (sumRem / sumTotal) * 100;
-final sleepEfficiency = sumTotal == 0
-    ? 0.0
-    : ((sumTotal - sumAwake) / sumTotal) * 100;
-final wasoPct = avgTotal == 0 ? 0.0 : (avgAwake / avgTotal) * 100;
+ // ── Sleep Efficiency & WASO as % of true in-bed time ──
+ // (in-bed = timeAwake – timeInBed, which includes sleep latency)
+ double totalEff = 0.0;
+ double totalWasoPct = 0.0;
+ for (var entry in valid) {
+   final inBedMin = _computeInBedMinutes(entry);
+   // total sleep = deep + rem + light
+   final sleepMin = _parseToMinutes(entry['deepSleep'])
+                  + _parseToMinutes(entry['remSleep'])
+                  + _parseToMinutes(entry['lightSleep']);
+   // WASO = awakeTime (minutes awake after sleep onset)
+   final wasoMin  = _parseToMinutes(entry['awakeTime']);
+   if (inBedMin > 0) {
+     totalEff += (sleepMin / inBedMin) * 100;
+     totalWasoPct += (wasoMin / inBedMin) * 100;
+   }
+ }
+ final sleepEfficiency = valid.isEmpty
+     ? 0.0
+     : totalEff / valid.length;
+ final wasoPct = valid.isEmpty
+     ? 0.0
+     : totalWasoPct / valid.length;
 
 
     // Compute maxY for chart padding
