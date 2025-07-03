@@ -257,34 +257,10 @@ final avgRest  = restTotals.isEmpty ? 0.0 : restTotals.reduce((a, b) => a + b) /
 final avgAwake = totals.isEmpty ? 0.0 : sumAwake / totals.length;
 final deepPct  = sumTotal == 0 ? 0.0 : (sumDeep / sumTotal) * 100;
 final remPct   = sumTotal == 0 ? 0.0 : (sumRem / sumTotal) * 100;
-final efficiency = sumTotal == 0 ? 0.0 : ((sumTotal - sumAwake) / sumTotal) * 100;
-final waso = avgAwake;
-// Placeholder for REM-onset latency; data not available
-final remLatency = 0.0;
-
-// ── Change vs previous period ──
-final prevDurationDays = _bucketSize * widget.days.length;
-final startPrev = widget.days.first
-    .subtract(Duration(days: prevDurationDays));
-final endPrev   = widget.days.first.subtract(const Duration(days: 1));
-
-double sumPrevTotal = 0.0, sumPrevRest = 0.0;
-for (var e in widget.rawData) {
-  final dt = e['date'] as DateTime?;
-  if (dt == null) continue;
-  if (!dt.isBefore(startPrev) && !dt.isAfter(endPrev)) {
-    sumPrevTotal += _parseToMinutes(e['totalDuration']);
-    sumPrevRest  += _parseToMinutes(e['deepSleep']) +
-                    _parseToMinutes(e['remSleep']);
-  }
-}
-
-final changeTotalPct = sumPrevTotal == 0
+final sleepEfficiency = sumTotal == 0
     ? 0.0
-    : ((sumTotal - sumPrevTotal) / sumPrevTotal) * 100;
-final changeRestPct = sumPrevRest == 0
-    ? 0.0
-    : ((sumDeep + sumRem - sumPrevRest) / sumPrevRest) * 100;
+    : ((sumTotal - sumAwake) / sumTotal) * 100;
+final wasoPct = avgTotal == 0 ? 0.0 : (avgAwake / avgTotal) * 100;
 
 
     // Compute maxY for chart padding
@@ -514,11 +490,8 @@ bottomTitles: AxisTitles(
                             Text('% Deep: ${deepPct.round()}%'),
                             Text('% REM: ${remPct.round()}%'),
                             Text('Restorative: ${_formatDuration(avgRest)}'),
-                            Text('REM latency: ${remLatency.round()}m'),
-                            Text('Efficiency: ${efficiency.round()}%'),
-                            Text('WASO: ${waso.round()}m'),
-                            Text("Δ Total: ${changeTotalPct >= 0 ? "+" : ""}${changeTotalPct.round()}%"),
-                            Text("Δ Rest: ${changeRestPct >= 0 ? "+" : ""}${changeRestPct.round()}%"),
+                            Text('Sleep Efficiency: ${sleepEfficiency.round()}%'),
+                            Text('WASO: ${wasoPct.round()}%'),
                           ],
                         ),
                       ],
