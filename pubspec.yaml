@@ -33,7 +33,7 @@ dependencies:
   firebase_core: ^3.15.0     # Updated to the latest compatible version
   firebase_auth: ^5.6.1     # Updated to the latest version compatible with firebase_core 3.13.0
   cloud_firestore: ^5.6.10     # This version should be fine, but update if needed
-  fl_chart: ^1.0.0
+  fl_chart: 1.0.0
   dart_sentiment: ^0.0.9
   
   # The following adds the Cupertino Icons font to your application.
