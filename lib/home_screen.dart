@@ -10,6 +10,7 @@ import 'view_dream_screen.dart';
 
 import '../widgets/multi_dream_entry_modal.dart';
 import 'screens/settings_screen.dart';
+import 'services/health_sync_service.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _reminderEnabled = false;
   bool _dreamPromptEnabled = true;
   final FirestoreService _firestoreService = FirestoreService();
+  final HealthSyncService _healthSyncService = HealthSyncService();
   StreamSubscription? _sleepSub;
   StreamSubscription? _dreamSub;
 
@@ -49,8 +51,28 @@ class _HomeScreenState extends State<HomeScreen> {
         _maybeShowDreamQuestion();
       });
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeSyncHealthData();
+    });
     _fetchHomeData();
     _startListeners();
+  }
+
+  /// Silently syncs Health/Health Connect sleep data at most once per day,
+  /// mirroring _maybeShowDreamQuestion's once-per-day pattern. Fire-and-forget:
+  /// the existing _sleepSub stream listener already refreshes the UI once a
+  /// new sleep_logs doc lands.
+  Future<void> _maybeSyncHealthData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final healthSyncEnabled = prefs.getBool('healthSyncEnabled') ?? false;
+    if (!healthSyncEnabled) return;
+
+    final lastSync = prefs.getString('lastHealthSyncDate');
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (lastSync == today) return;
+
+    await _healthSyncService.syncRecentDays(days: 2);
+    await prefs.setString('lastHealthSyncDate', today);
   }
 
   Future<void> _loadDreamPromptSetting() async {

@@ -229,7 +229,10 @@ Future<void> updateDream({
     });
   }
 
-  Future<void> saveSleepLogAuto({
+  /// Assembles the full sleep_logs document map (score, derived fields, etc.)
+  /// shared by both the manual-entry and health-import write paths. Returns
+  /// null if there's no authenticated user.
+  Future<Map<String, dynamic>?> _buildSleepLogData({
     required String   totalDuration,
     required String   deepSleep,
     required String   remSleep,
@@ -240,9 +243,10 @@ Future<void> updateDream({
     required String   quality,
              String?  notes,
     required DateTime date,
+    required String   source,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) return null;
 
     final total    = parseToMinutes(totalDuration);
     final deep     = parseToMinutes(deepSleep);
@@ -285,7 +289,7 @@ Future<void> updateDream({
     final fallReadable = '${timeToFall.inMinutes} min';
     final fallISO      = timeToFall.toString();
 
-    final data = {
+    return {
       'totalDuration':     totalDuration,
       'deepSleep':         deepSleep,
       'remSleep':          remSleep,
@@ -305,9 +309,78 @@ Future<void> updateDream({
       'userId':            user.uid,
       'timeToFallAsleep':  fallReadable,
       'timeToFallAsleepISO': fallISO,
+      'source':            source,
     };
+  }
+
+  Future<void> saveSleepLogAuto({
+    required String   totalDuration,
+    required String   deepSleep,
+    required String   remSleep,
+    required String   awakeTime,
+    required String   timeInBed,
+    required String   timeAsleep,
+    required String   timeAwake,
+    required String   quality,
+             String?  notes,
+    required DateTime date,
+  }) async {
+    final data = await _buildSleepLogData(
+      totalDuration: totalDuration,
+      deepSleep:     deepSleep,
+      remSleep:      remSleep,
+      awakeTime:     awakeTime,
+      timeInBed:     timeInBed,
+      timeAsleep:    timeAsleep,
+      timeAwake:     timeAwake,
+      quality:       quality,
+      notes:         notes,
+      date:          date,
+      source:        'manual',
+    );
+    if (data == null) return;
 
     await _firestore.collection('sleep_logs').add(data);
+  }
+
+  /// Writes a sleep log imported from HealthKit/Health Connect. Uses a
+  /// deterministic doc ID per user/night so repeated syncs of the same night
+  /// overwrite rather than duplicate.
+  Future<void> saveSleepLogFromHealth({
+    required String   totalDuration,
+    required String   deepSleep,
+    required String   remSleep,
+    required String   awakeTime,
+    required String   timeInBed,
+    required String   timeAsleep,
+    required String   timeAwake,
+    required String   quality,
+             String?  notes,
+    required DateTime date,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final data = await _buildSleepLogData(
+      totalDuration: totalDuration,
+      deepSleep:     deepSleep,
+      remSleep:      remSleep,
+      awakeTime:     awakeTime,
+      timeInBed:     timeInBed,
+      timeAsleep:    timeAsleep,
+      timeAwake:     timeAwake,
+      quality:       quality,
+      notes:         notes,
+      date:          date,
+      source:        'health',
+    );
+    if (data == null) return;
+
+    final docId = '${user.uid}_${DateFormat('yyyyMMdd').format(date)}_health';
+    await _firestore
+        .collection('sleep_logs')
+        .doc(docId)
+        .set(data, SetOptions(merge: true));
   }
 
 Future<void> updateSleepLogAuto({
@@ -394,6 +467,7 @@ Future<void> updateSleepLogAuto({
         'notes':              notes ?? '',
         'timestamp':          Timestamp.fromDate(date),
         'userId':             user.uid,
+        'source':             'manual',
       });
 }
 

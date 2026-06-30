@@ -8,7 +8,8 @@ plugins {
 
 android {
     namespace = "com.example.rem"  // Update your package name here
-    compileSdk = 35
+    // compileSdk 36 is required by the `health` package's Health Connect dependency.
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -26,8 +27,11 @@ android {
         // higher. Using a lower minSdk results in build failures when Gradle
         // tries to merge manifests from these libraries. Bump the value to 21
         // so the app can run on modern Android emulators.
-        minSdk = 23
-        targetSdk = 33
+        // minSdk 26 is required by Health Connect (the `health` package).
+        minSdk = 26
+        // targetSdk 34 is required for the Health Connect permission-rationale
+        // flow to work correctly on Android 14+.
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
     }

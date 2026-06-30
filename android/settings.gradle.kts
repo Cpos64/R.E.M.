@@ -18,7 +18,9 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.7.0" apply false
+    // AGP 8.9.1+ is required to compile against compileSdk 36 (health package's
+    // Health Connect dependency requirement).
+    id("com.android.application") version "8.9.1" apply false
     // START: FlutterFire Configuration
     id("com.google.gms.google-services") version("4.3.15") apply false
     // END: FlutterFire Configuration

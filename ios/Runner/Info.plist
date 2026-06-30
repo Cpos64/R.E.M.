@@ -47,5 +47,9 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSHealthShareUsageDescription</key>
+		<string>REM uses Health data to import your sleep history so you can track sleep trends over time.</string>
+		<key>NSHealthUpdateUsageDescription</key>
+		<string>REM uses Health data to import your sleep history so you can track sleep trends over time.</string>
 	</dict>
 </plist>

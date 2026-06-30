@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/health_sync_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isDarkTheme;
@@ -18,6 +19,9 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _dreamPromptEnabled = true;
+  bool _healthSyncEnabled = false;
+  bool _healthSyncBusy = false;
+  final HealthSyncService _healthSyncService = HealthSyncService();
 
   @override
   void initState() {
@@ -29,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _dreamPromptEnabled = prefs.getBool('dreamPromptEnabled') ?? true;
+      _healthSyncEnabled = prefs.getBool('healthSyncEnabled') ?? false;
     });
   }
 
@@ -38,6 +43,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _dreamPromptEnabled = value;
     });
+  }
+
+  Future<void> _updateHealthSync(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('healthSyncEnabled', value);
+    setState(() {
+      _healthSyncEnabled = value;
+    });
+
+    if (!value) return;
+
+    setState(() => _healthSyncBusy = true);
+    final result = await _healthSyncService.requestAuthorizationAndInitialSync();
+    if (!mounted) return;
+    setState(() => _healthSyncBusy = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message)),
+    );
+  }
+
+  Future<void> _syncNow() async {
+    setState(() => _healthSyncBusy = true);
+    final result = await _healthSyncService.syncRecentDays(days: 7);
+    if (!mounted) return;
+    setState(() => _healthSyncBusy = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message)),
+    );
   }
 
   @override
@@ -66,6 +99,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: _updateDreamPrompt,
             secondary: const Icon(Icons.nightlight_round),
           ),
+          SwitchListTile(
+            title: const Text('Sync with Health App'),
+            subtitle: const Text('Import sleep data from Apple Health / Health Connect'),
+            value: _healthSyncEnabled,
+            onChanged: _healthSyncBusy ? null : _updateHealthSync,
+            secondary: const Icon(Icons.favorite),
+          ),
+          if (_healthSyncEnabled)
+            ListTile(
+              leading: _healthSyncBusy
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+              title: const Text('Sync Now'),
+              onTap: _healthSyncBusy ? null : _syncNow,
+            ),
         ],
       ),
     );
