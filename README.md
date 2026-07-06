@@ -58,10 +58,16 @@ cupertino_icons: ^1.0.0
 
 3. **OpenAI configuration**
 
-   Create a `.env` file in the project root and add your OpenAI API key:
+   The app reads your OpenAI API key via `--dart-define` (see `lib/services/chat_service.dart`). Pass it when running or building:
 
    ```bash
-   echo "OPENAI_API_KEY=your-key" > .env
+   flutter run --dart-define=OPENAI_API_KEY=sk-your-key
+   ```
+
+   Optionally override the default models:
+
+   ```bash
+   flutter run --dart-define=OPENAI_API_KEY=sk-your-key --dart-define=OPENAI_CHAT_MODEL=gpt-4 --dart-define=OPENAI_IMAGE_MODEL=dall-e-3
    ```
 
 4. **Firebase configuration**
@@ -75,8 +81,10 @@ cupertino_icons: ^1.0.0
 
 5. **Run the app**
 
+   Include the `--dart-define` flags from step 3:
+
    ```bash
-   flutter run
+   flutter run --dart-define=OPENAI_API_KEY=sk-your-key
    ```
 
 ### Android requirements
