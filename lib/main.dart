@@ -10,6 +10,7 @@ import 'main_navigation.dart';
 import 'firestore_service.dart';
 import 'package:google_fonts/google_fonts.dart'; // ✅ optional font
 import 'stats_screen.dart';
+import 'theme/app_transitions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -110,10 +111,16 @@ class _MyAppState extends State<MyApp> {
                     isDarkTheme: _isDarkTheme,
                   )
                 : const LoginScreen(),
-            routes: {
-              '/dreams': (context) => DreamsScreen(),
-              '/sleep_logs': (context) => SleepLogScreen(),
-              '/stats': (context) => const StatsScreen(),
+            onGenerateRoute: (settings) {
+              switch (settings.name) {
+                case '/dreams':
+                  return appRouteBuilder(settings, (_) => DreamsScreen());
+                case '/sleep_logs':
+                  return appRouteBuilder(settings, (_) => SleepLogScreen());
+                case '/stats':
+                  return appRouteBuilder(settings, (_) => const StatsScreen());
+              }
+              return null;
             },
           ),
         );

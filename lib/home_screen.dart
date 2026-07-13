@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'firestore_service.dart';
 import 'view_dream_screen.dart';
 
 import '../widgets/multi_dream_entry_modal.dart';
 import 'screens/settings_screen.dart';
 import 'services/health_sync_service.dart';
+import 'theme/app_transitions.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -277,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.settings),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
+              AppPageRoute(
                 builder: (_) => SettingsScreen(
                   isDarkTheme: widget.isDarkTheme,
                   toggleTheme: widget.toggleTheme,
@@ -308,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: Text('${_lastSleep!['totalDuration']} · ${_lastSleep!['quality'] ?? ''}'),
                           subtitle: Text('${_lastSleep!['timeAsleep'] ?? ''}–${_lastSleep!['timeAwake'] ?? ''}'),
                         ),
-            ),
+            ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
             const SizedBox(height: 16),
 
             // ─── Quick-Add Buttons ───
@@ -328,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Text('💭\nRecord Dream', textAlign: TextAlign.center),
                 ),
               ],
-            ),
+            ).animate().fadeIn(delay: 80.ms, duration: 350.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
             const SizedBox(height: 16),
 
             // ─── Recent Dreams ───
@@ -343,14 +345,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (_recentDreams.isEmpty)
                       const Text('No dreams yet.')
                     else
-                      ..._recentDreams.map((doc) {
+                      ..._recentDreams.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final doc = entry.value;
                         final data = doc.data() as Map<String, dynamic>;
                         final title = data['title'] ?? '';
                         return InkWell(
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
+                              AppPageRoute(
                                 builder: (_) => ViewDreamScreen(
                                   docId: doc.id,
                                   title: title,
@@ -370,7 +374,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                           child: Text('▶︎ "$title"'),
-                        );
+                        ).animate().fadeIn(
+                              delay: (100 + index * 60).ms,
+                              duration: 300.ms,
+                            ).slideX(begin: 0.05, end: 0, curve: Curves.easeOutCubic);
                       }).toList(),
                     Align(
                       alignment: Alignment.centerRight,
@@ -382,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-            ),
+            ).animate().fadeIn(delay: 140.ms, duration: 350.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
             const SizedBox(height: 16),
 
             // ─── Quote of the Day ───
@@ -397,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   textAlign: TextAlign.center,
                 ),
               ),
-            ),
+            ).animate().fadeIn(delay: 200.ms, duration: 350.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
             const SizedBox(height: 16),
 
             // ─── Weekly Stats ───
@@ -410,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Text('View Full Stats →'),
                 ),
               ),
-            ),
+            ).animate().fadeIn(delay: 260.ms, duration: 350.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
           ],
         ),
       ),

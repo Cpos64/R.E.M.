@@ -1,6 +1,7 @@
 // lib/screens/view_dream_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../firestore_service.dart';
 
@@ -185,7 +186,7 @@ Future<void> _saveDream() async {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
-              ),
+              ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0, curve: Curves.easeOutCubic),
       ),
     );
   }

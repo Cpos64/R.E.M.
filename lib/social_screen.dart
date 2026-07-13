@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firestore_service.dart';
 import 'profile_screen.dart';
+import 'theme/app_transitions.dart';
 
 class SocialScreen extends StatefulWidget {
   const SocialScreen({super.key});
@@ -24,7 +25,7 @@ class _SocialScreenState extends State<SocialScreen> {
   void _openProfile(String uid, String email) {
     Navigator.push(
       context,
-      MaterialPageRoute(
+      AppPageRoute(
         builder: (_) => ProfileScreen(uid: uid, email: email),
       ),
     );

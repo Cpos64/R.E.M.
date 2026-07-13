@@ -45,9 +45,27 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      // AnimatedSwitcher gives tab changes a quick fade+scale "pop" instead of
+      // the flat instant swap a plain IndexedStack would give. Note: this
+      // trades IndexedStack's state-preservation (scroll position, open
+      // dialogs) for a livelier feel — each tab's screen remounts on
+      // re-visit. If a specific tab needs its scroll/form state preserved
+      // across switches, wrap that screen in AutomaticKeepAliveClientMixin.
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
+            child: child,
+          ),
+        ),
+        child: KeyedSubtree(
+          key: ValueKey<int>(_currentIndex),
+          child: _screens[_currentIndex],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
